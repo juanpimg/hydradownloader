@@ -164,6 +164,7 @@ export const youtubeExtractor: Extractor = {
       if (Array.isArray(data.formatStreams)) {
         data.formatStreams.forEach((s: any, idx: number) => {
           if (!s.url || /(?:youtube\.com\/watch|youtu\.be\/)/i.test(s.url)) return;
+          if (s.size === '0' || s.size === 0 || s.clen === '0') return;
           const resLabel = s.resolution || s.quality || '360p';
           streams.push({
             id: `yt-prog-${idx}-${resLabel}`,
@@ -182,6 +183,7 @@ export const youtubeExtractor: Extractor = {
       if (Array.isArray(data.adaptiveFormats)) {
         data.adaptiveFormats.forEach((s: any, idx: number) => {
           if (!s.url || /(?:youtube\.com\/watch|youtu\.be\/)/i.test(s.url)) return;
+          if (s.size === '0' || s.size === 0 || s.clen === '0') return;
           const isAudio = s.type?.startsWith('audio') || s.container === 'm4a';
           const isVideo = s.type?.startsWith('video') || s.resolution;
 

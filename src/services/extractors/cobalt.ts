@@ -2,14 +2,20 @@ import { Extractor, ExtractionResult, MediaMetadata, StreamOption } from './type
 
 export const DEFAULT_COBALT_INSTANCES = [
   'https://rue-cobalt.xenon.zone',
-  'https://cobaltapi.cjs.nz',
-  'https://api.qwkuns.me',
-  'https://api-cobalt.eversiege.network'
+  'https://cobaltapi.cjs.nz'
 ];
 
 export function getCustomCobaltInstance(): string {
   try {
-    return localStorage.getItem('hydra_cobalt_instance') || DEFAULT_COBALT_INSTANCES[0];
+    const custom = localStorage.getItem('hydra_cobalt_instance');
+    if (
+      custom &&
+      !custom.includes('qwkuns.me') &&
+      !custom.includes('eversiege.network')
+    ) {
+      return custom;
+    }
+    return DEFAULT_COBALT_INSTANCES[0];
   } catch {
     return DEFAULT_COBALT_INSTANCES[0];
   }
@@ -20,6 +26,56 @@ export function setCustomCobaltInstance(instanceUrl: string): void {
     localStorage.setItem('hydra_cobalt_instance', instanceUrl.trim().replace(/\/$/, ''));
   } catch {
     // ignore
+  }
+}
+
+/**
+ * Validates or probes that a returned tunnel URL actually yields data.
+ * Checks HTTP status and headers (rejects content-length or estimated-content-length of '0').
+ */
+export async function probeTunnelUrl(url: string, signal?: AbortSignal, timeoutMs = 4500): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
+  try {
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'HEAD',
+        signal: controller.signal
+      });
+    } catch {
+      // If HEAD is blocked or fails, probe with Range GET
+      res = await fetch(url, {
+        method: 'GET',
+        headers: { Range: 'bytes=0-0' },
+        signal: controller.signal
+      });
+      if (res.body) {
+        res.body.cancel().catch(() => {});
+      }
+    }
+
+    clearTimeout(timeout);
+
+    if (!res.ok && res.status !== 206) {
+      return false;
+    }
+
+    const cl = res.headers.get('content-length');
+    const ecl = res.headers.get('estimated-content-length');
+    if (cl === '0' || ecl === '0') {
+      return false;
+    }
+
+    return true;
+  } catch {
+    clearTimeout(timeout);
+    return false;
   }
 }
 
@@ -85,6 +141,18 @@ export const cobaltExtractor: Extractor = {
         const streams: StreamOption[] = [];
 
         if (data.status === 'tunnel' || data.status === 'redirect') {
+          if (!data.url) {
+            lastError = `Instancia ${instance} no devolvió una URL válida.`;
+            continue;
+          }
+
+          // Probe that the returned tunnel URL actually yields data
+          const isValidTunnel = await probeTunnelUrl(data.url, signal);
+          if (!isValidTunnel) {
+            lastError = `Instancia ${instance} devolvió un tunnel vacío o no accesible.`;
+            continue;
+          }
+
           streams.push({
             id: `cobalt-video-${Date.now()}`,
             label: 'Vídeo HD (MP4 con Audio)',
@@ -114,15 +182,18 @@ export const cobaltExtractor: Extractor = {
             if (audioResponse.ok) {
               const audioData = await audioResponse.json();
               if ((audioData.status === 'tunnel' || audioData.status === 'redirect') && audioData.url) {
-                streams.push({
-                  id: `cobalt-audio-${Date.now()}`,
-                  label: 'Solo Audio (MP3)',
-                  quality: 'audio',
-                  format: 'mp3',
-                  type: 'audio',
-                  url: audioData.url,
-                  hasAudio: true
-                });
+                const isAudioValid = await probeTunnelUrl(audioData.url, signal);
+                if (isAudioValid) {
+                  streams.push({
+                    id: `cobalt-audio-${Date.now()}`,
+                    label: 'Solo Audio (MP3)',
+                    quality: 'audio',
+                    format: 'mp3',
+                    type: 'audio',
+                    url: audioData.url,
+                    hasAudio: true
+                  });
+                }
               }
             }
           } catch {
@@ -130,6 +201,7 @@ export const cobaltExtractor: Extractor = {
           }
         } else if (data.status === 'picker' && Array.isArray(data.picker)) {
           data.picker.forEach((item: any, idx: number) => {
+            if (!item.url) return;
             streams.push({
               id: `cobalt-picker-${idx}`,
               label: item.type === 'photo' ? `Foto ${idx + 1}` : `Opción ${idx + 1} (${item.type || 'Media'})`,
@@ -143,7 +215,7 @@ export const cobaltExtractor: Extractor = {
         }
 
         if (streams.length === 0) {
-          lastError = 'Cobalt no devolvió ningún enlace de descarga disponible.';
+          lastError = `La instancia ${instance} no devolvió ningún enlace de descarga disponible o los tunnels estaban vacíos.`;
           continue;
         }
 

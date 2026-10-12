@@ -43,14 +43,13 @@ export async function downloadStream(
   }
 
   const filename = sanitizeFilename(title, stream.format);
+  const notify = (state: DownloadProgressState) => {
+    if (onProgress) {
+      onProgress(state);
+    }
+  };
 
-  // If onProgress is not provided, trigger immediate direct anchor download
-  if (!onProgress) {
-    triggerBrowserSave(stream.url, filename);
-    return;
-  }
-
-  onProgress({
+  notify({
     isDownloading: true,
     progress: 0,
     bytesReceived: 0,
@@ -60,67 +59,55 @@ export async function downloadStream(
 
   try {
     const startTime = Date.now();
-    let response: Response;
-
-    try {
-      response = await fetch(stream.url, { signal });
-    } catch {
-      // If direct fetch is blocked by CORS, trigger standard browser download directly to disk
-      console.warn('[HydraDownloader] Fetch bloqueado por CORS. Redirigiendo a descarga nativa del navegador.');
-      triggerBrowserSave(stream.url, filename);
-      onProgress({
-        isDownloading: false,
-        progress: 100,
-        bytesReceived: stream.fileSize || 0,
-        totalBytes: stream.fileSize || 0,
-        speed: 'Descarga iniciada'
-      });
-      return;
-    }
+    const response = await fetch(stream.url, { signal });
 
     if (!response.ok) {
       throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
     }
 
     const contentLength = response.headers.get('content-length') || response.headers.get('estimated-content-length');
+    if (contentLength === '0') {
+      throw new Error('El servidor devolvió una respuesta vacía (0 bytes).');
+    }
+
     const total = contentLength ? parseInt(contentLength, 10) : (stream.fileSize || 0);
 
     if (!response.body) {
-      triggerBrowserSave(stream.url, filename);
-      onProgress({
-        isDownloading: false,
-        progress: 100,
-        bytesReceived: total,
-        totalBytes: total,
-        speed: 'Descarga iniciada'
-      });
-      return;
+      throw new Error('El flujo de datos de la descarga no está disponible.');
     }
 
     const reader = response.body.getReader();
     const chunks: BlobPart[] = [];
     let received = 0;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      if (value) {
-        chunks.push(value.buffer as ArrayBuffer);
-        received += value.length;
+        if (value) {
+          chunks.push(value);
+          received += value.length;
+        }
+
+        const elapsedSec = (Date.now() - startTime) / 1000;
+        const speedMBps = elapsedSec > 0 ? (received / (1024 * 1024) / elapsedSec).toFixed(1) : '0';
+        const pct = total > 0 ? Math.min(100, Math.round((received / total) * 100)) : Math.min(99, Math.round(received / (1024 * 1024 * 10)));
+
+        notify({
+          isDownloading: true,
+          progress: pct,
+          bytesReceived: received,
+          totalBytes: total,
+          speed: `${speedMBps} MB/s`
+        });
       }
+    } finally {
+      reader.releaseLock();
+    }
 
-      const elapsedSec = (Date.now() - startTime) / 1000;
-      const speedMBps = elapsedSec > 0 ? (received / (1024 * 1024) / elapsedSec).toFixed(1) : '0';
-      const pct = total > 0 ? Math.min(100, Math.round((received / total) * 100)) : Math.min(99, Math.round(received / (1024 * 1024 * 10)));
-
-      onProgress({
-        isDownloading: true,
-        progress: pct,
-        bytesReceived: received,
-        totalBytes: total,
-        speed: `${speedMBps} MB/s`
-      });
+    if (received === 0) {
+      throw new Error('El archivo descargado está vacío (0 bytes recibidos).');
     }
 
     // Determine MIME type based on format / type
@@ -129,6 +116,10 @@ export async function downloadStream(
       : 'video/mp4';
 
     const blob = new Blob(chunks, { type: mimeType });
+    if (blob.size === 0) {
+      throw new Error('El archivo generado está vacío (0 bytes).');
+    }
+
     const objectUrl = URL.createObjectURL(blob);
     triggerBrowserSave(objectUrl, filename);
 
@@ -136,7 +127,7 @@ export async function downloadStream(
       URL.revokeObjectURL(objectUrl);
     }, 30000);
 
-    onProgress({
+    notify({
       isDownloading: false,
       progress: 100,
       bytesReceived: received,
@@ -145,7 +136,7 @@ export async function downloadStream(
     });
   } catch (err: any) {
     if (signal?.aborted) {
-      onProgress({
+      notify({
         isDownloading: false,
         progress: 0,
         bytesReceived: 0,
@@ -155,19 +146,21 @@ export async function downloadStream(
       return;
     }
 
-    console.warn('[HydraDownloader] Error en descarga progresiva, intentando guardado directo en navegador:', err);
-    triggerBrowserSave(stream.url, filename);
-    onProgress({
+    notify({
       isDownloading: false,
-      progress: 100,
+      progress: 0,
       bytesReceived: 0,
       totalBytes: 0,
-      speed: 'Descarga iniciada'
+      speed: 'Error',
+      error: err.message || 'Error en la descarga'
     });
+
+    throw err;
   }
 }
 
 export function triggerBrowserSave(url: string, filename: string): void {
+  if (typeof document === 'undefined') return;
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
@@ -176,6 +169,8 @@ export function triggerBrowserSave(url: string, filename: string): void {
   document.body.appendChild(a);
   a.click();
   setTimeout(() => {
-    document.body.removeChild(a);
+    if (a.parentNode) {
+      document.body.removeChild(a);
+    }
   }, 100);
 }
