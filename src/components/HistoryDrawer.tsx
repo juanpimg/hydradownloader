@@ -1,5 +1,5 @@
 import { HistoryItem } from '../services/storage';
-import { triggerBrowserSave } from '../services/downloadManager';
+import { triggerBrowserSave, sanitizeFilename } from '../services/downloadManager';
 import { X, History, Download, Trash2, ExternalLink, Film, Music } from 'lucide-react';
 
 interface HistoryDrawerProps {
@@ -8,6 +8,7 @@ interface HistoryDrawerProps {
   items: HistoryItem[];
   onRemoveItem: (id: string) => void;
   onClearAll: () => void;
+  onRedownload?: (item: HistoryItem) => void;
 }
 
 function timeAgo(timestamp: number): string {
@@ -27,7 +28,8 @@ export function HistoryDrawer({
   onClose,
   items,
   onRemoveItem,
-  onClearAll
+  onClearAll,
+  onRedownload
 }: HistoryDrawerProps) {
   if (!isOpen) return null;
 
@@ -113,7 +115,13 @@ export function HistoryDrawer({
                 <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
-                    onClick={() => triggerBrowserSave(item.streamUrl, `${item.title}.${item.format}`)}
+                    onClick={() => {
+                      if (onRedownload) {
+                        onRedownload(item);
+                      } else {
+                        triggerBrowserSave(item.streamUrl, sanitizeFilename(item.title, item.format));
+                      }
+                    }}
                     title="Volver a descargar"
                     className="p-1.5 rounded-full hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-colors"
                   >

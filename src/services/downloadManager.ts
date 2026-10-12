@@ -42,6 +42,10 @@ export async function downloadStream(
     throw new Error('Esta opción no contiene un archivo multimedia descargable directo.');
   }
 
+  if (stream.fileSize === 0) {
+    throw new Error('El tamaño indicado para este archivo es de 0 bytes.');
+  }
+
   const filename = sanitizeFilename(title, stream.format);
   const notify = (state: DownloadProgressState) => {
     if (onProgress) {
@@ -65,8 +69,12 @@ export async function downloadStream(
       throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
     }
 
+    if (response.status === 204 || response.status === 205) {
+      throw new Error('El servidor devolvió una respuesta sin contenido (0 bytes).');
+    }
+
     const contentLength = response.headers.get('content-length') || response.headers.get('estimated-content-length');
-    if (contentLength === '0') {
+    if (contentLength && parseInt(contentLength.trim(), 10) === 0) {
       throw new Error('El servidor devolvió una respuesta vacía (0 bytes).');
     }
 
@@ -111,9 +119,37 @@ export async function downloadStream(
     }
 
     // Determine MIME type based on format / type
-    const mimeType = stream.type === 'audio'
-      ? (stream.format === 'mp3' ? 'audio/mpeg' : 'audio/mp4')
-      : 'video/mp4';
+    let mimeType = 'application/octet-stream';
+    const fmt = (stream.format || '').toLowerCase();
+    if (stream.type === 'audio') {
+      const audioMimes: Record<string, string> = {
+        mp3: 'audio/mpeg',
+        m4a: 'audio/mp4',
+        ogg: 'audio/ogg',
+        wav: 'audio/wav',
+        flac: 'audio/flac',
+        aac: 'audio/aac',
+        opus: 'audio/opus'
+      };
+      mimeType = audioMimes[fmt] || 'audio/mpeg';
+    } else if (stream.type === 'image') {
+      const imageMimes: Record<string, string> = {
+        png: 'image/png',
+        webp: 'image/webp',
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        gif: 'image/gif'
+      };
+      mimeType = imageMimes[fmt] || 'image/jpeg';
+    } else {
+      const videoMimes: Record<string, string> = {
+        webm: 'video/webm',
+        mkv: 'video/x-matroska',
+        mov: 'video/quicktime',
+        mp4: 'video/mp4'
+      };
+      mimeType = videoMimes[fmt] || 'video/mp4';
+    }
 
     const blob = new Blob(chunks, { type: mimeType });
     if (blob.size === 0) {

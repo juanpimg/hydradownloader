@@ -11,11 +11,30 @@ export type PlatformType =
 
 export type MediaType = 'video' | 'audio' | 'image';
 
+export type MediaFormat =
+  | 'mp4'
+  | 'webm'
+  | 'mkv'
+  | 'mov'
+  | 'mp3'
+  | 'm4a'
+  | 'wav'
+  | 'ogg'
+  | 'flac'
+  | 'aac'
+  | 'opus'
+  | 'jpg'
+  | 'jpeg'
+  | 'png'
+  | 'webp'
+  | 'gif'
+  | 'unknown';
+
 export interface StreamOption {
   id: string;
   label: string; // e.g. "1080p (FHD)", "720p (HD)", "Audio (MP3)"
   quality?: string; // "1080", "720", "audio", etc.
-  format: 'mp4' | 'webm' | 'mp3' | 'm4a' | 'wav' | 'unknown';
+  format: MediaFormat;
   type: MediaType;
   url: string;
   hasAudio?: boolean;

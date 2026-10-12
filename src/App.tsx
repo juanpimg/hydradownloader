@@ -112,6 +112,27 @@ export function App() {
     }
   };
 
+  const handleRedownload = async (item: HistoryItem) => {
+    setHistoryOpen(false);
+    setError(null);
+    const isAudio = item.format === 'mp3' || item.format === 'm4a' || item.format === 'wav' || item.format === 'ogg';
+    const streamOption: StreamOption = {
+      id: item.id,
+      label: item.title,
+      quality: item.quality,
+      format: (item.format as any) || 'mp4',
+      type: isAudio ? 'audio' : 'video',
+      url: item.streamUrl
+    };
+    try {
+      await downloadStream(streamOption, item.title, (state) => {
+        setProgressState(state);
+      });
+    } catch (err: any) {
+      setError(`Error al descargar desde el historial: ${err.message}. Es posible que el enlace temporal haya caducado.`);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#f5f5f7] dark:bg-[#000000] text-[#1d1d1f] dark:text-[#f5f5f7] transition-colors selection:bg-blue-500/20">
       {/* Translucent Apple Header */}
@@ -299,6 +320,7 @@ export function App() {
           clearHistory();
           setHistory([]);
         }}
+        onRedownload={handleRedownload}
       />
     </div>
   );

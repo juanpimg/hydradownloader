@@ -42,14 +42,22 @@ export async function probeTunnelUrl(url: string, signal?: AbortSignal, timeoutM
   }
 
   try {
-    let res: Response;
+    let res: Response | null = null;
     try {
-      res = await fetch(url, {
+      const headRes = await fetch(url, {
         method: 'HEAD',
         signal: controller.signal
       });
+      // If HEAD is successful and not 405/403/etc.
+      if (headRes.ok) {
+        res = headRes;
+      }
     } catch {
-      // If HEAD is blocked or fails, probe with Range GET
+      // HEAD network error or blocked; fallback to Range GET
+    }
+
+    if (!res) {
+      // If HEAD was rejected (e.g. 405 Method Not Allowed) or failed, probe with Range GET
       res = await fetch(url, {
         method: 'GET',
         headers: { Range: 'bytes=0-0' },
@@ -68,7 +76,13 @@ export async function probeTunnelUrl(url: string, signal?: AbortSignal, timeoutM
 
     const cl = res.headers.get('content-length');
     const ecl = res.headers.get('estimated-content-length');
-    if (cl === '0' || ecl === '0') {
+    const cr = res.headers.get('content-range');
+
+    if ((cl !== null && parseInt(cl.trim(), 10) === 0) || (ecl !== null && parseInt(ecl.trim(), 10) === 0)) {
+      return false;
+    }
+
+    if (cr && /\/0$/.test(cr.trim())) {
       return false;
     }
 
@@ -202,14 +216,20 @@ export const cobaltExtractor: Extractor = {
         } else if (data.status === 'picker' && Array.isArray(data.picker)) {
           data.picker.forEach((item: any, idx: number) => {
             if (!item.url) return;
+            const isPhoto = item.type === 'photo';
+            let format: any = 'mp4';
+            if (isPhoto) {
+              const urlExtMatch = item.url.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+              format = urlExtMatch ? urlExtMatch[1].toLowerCase() : 'jpg';
+            }
             streams.push({
               id: `cobalt-picker-${idx}`,
-              label: item.type === 'photo' ? `Foto ${idx + 1}` : `Opción ${idx + 1} (${item.type || 'Media'})`,
+              label: isPhoto ? `Foto ${idx + 1}` : `Opción ${idx + 1} (${item.type || 'Media'})`,
               quality: 'best',
-              format: item.type === 'photo' ? 'unknown' : 'mp4',
-              type: item.type === 'photo' ? 'image' : 'video',
+              format,
+              type: isPhoto ? 'image' : 'video',
               url: item.url,
-              hasAudio: true
+              hasAudio: !isPhoto
             });
           });
         }
