@@ -118,13 +118,37 @@ export const youtubeExtractor: Extractor = {
 
     const videoId = match[1];
 
-    // Concurrently grab oEmbed metadata so we always have basic info
+    // Concurrently grab oEmbed metadata so we always have basic info (title, author, thumbnail)
     const oembedPromise = fetchYouTubeOEmbed(url, signal);
 
-    // 1. Try primary Invidious instances
+    // 1. Primary Strategy: Extract direct download streams via Cobalt
+    try {
+      const cobaltRes = await cobaltExtractor.extract(url, signal);
+      if (cobaltRes.success && cobaltRes.data && cobaltRes.data.streams.length > 0) {
+        // Filter out any invalid URLs that point back to youtube web pages
+        const validStreams = cobaltRes.data.streams.filter(
+          (s) => !/(?:youtube\.com\/watch|youtu\.be\/)/i.test(s.url)
+        );
+
+        if (validStreams.length > 0) {
+          const oembed = await oembedPromise;
+          cobaltRes.data.platform = 'youtube';
+          if (oembed?.title) cobaltRes.data.title = oembed.title;
+          if (oembed?.author_name) cobaltRes.data.author = { name: oembed.author_name };
+          cobaltRes.data.thumbnailUrl =
+            oembed?.thumbnail_url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+          cobaltRes.data.streams = validStreams;
+          cobaltRes.data.extractedVia = 'Cobalt Engine (Directo)';
+          return cobaltRes;
+        }
+      }
+    } catch (e) {
+      console.warn('[HydraDownloader] Cobalt extraction failed, trying Invidious fallback...', e);
+    }
+
+    // 2. Secondary Strategy: Invidious Instances
     let invidiousResult = await fetchInvidiousVideo(videoId, DEFAULT_INVIDIOUS_INSTANCES, signal);
 
-    // 2. If primary instances failed, attempt dynamic healthy instances
     if (!invidiousResult) {
       const dynamicInstances = await fetchHealthyInvidiousInstances(signal);
       if (dynamicInstances.length > 0) {
@@ -132,7 +156,6 @@ export const youtubeExtractor: Extractor = {
       }
     }
 
-    // If Invidious succeeded, build rich streams
     if (invidiousResult) {
       const { data, instance } = invidiousResult;
       const streams: StreamOption[] = [];
@@ -140,7 +163,7 @@ export const youtubeExtractor: Extractor = {
       // Progressive video streams (contains both video and audio)
       if (Array.isArray(data.formatStreams)) {
         data.formatStreams.forEach((s: any, idx: number) => {
-          if (!s.url) return;
+          if (!s.url || /(?:youtube\.com\/watch|youtu\.be\/)/i.test(s.url)) return;
           const resLabel = s.resolution || s.quality || '360p';
           streams.push({
             id: `yt-prog-${idx}-${resLabel}`,
@@ -155,10 +178,10 @@ export const youtubeExtractor: Extractor = {
         });
       }
 
-      // Adaptive video streams (1080p, 720p, 480p)
+      // Adaptive audio and video streams
       if (Array.isArray(data.adaptiveFormats)) {
         data.adaptiveFormats.forEach((s: any, idx: number) => {
-          if (!s.url) return;
+          if (!s.url || /(?:youtube\.com\/watch|youtu\.be\/)/i.test(s.url)) return;
           const isAudio = s.type?.startsWith('audio') || s.container === 'm4a';
           const isVideo = s.type?.startsWith('video') || s.resolution;
 
@@ -212,50 +235,9 @@ export const youtubeExtractor: Extractor = {
       }
     }
 
-    // 3. Fallback: Cobalt Universal Extractor
-    const cobaltRes = await cobaltExtractor.extract(url, signal);
-    if (cobaltRes.success && cobaltRes.data) {
-      const oembed = await oembedPromise;
-      cobaltRes.data.platform = 'youtube';
-      if (oembed?.title) cobaltRes.data.title = oembed.title;
-      if (oembed?.author_name) cobaltRes.data.author = { name: oembed.author_name };
-      cobaltRes.data.thumbnailUrl = oembed?.thumbnail_url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-      return cobaltRes;
-    }
-
-    // 4. Final Fallback: Direct Video Embed Playback Link
-    const oembed = await oembedPromise;
-    if (oembed?.title) {
-      const directStreams: StreamOption[] = [
-        {
-          id: `yt-embed-${videoId}`,
-          label: 'Ver / Abrir Vídeo Directo (YouTube)',
-          quality: 'best',
-          format: 'mp4',
-          type: 'video',
-          url: `https://www.youtube.com/watch?v=${videoId}`,
-          hasAudio: true
-        }
-      ];
-
-      return {
-        success: true,
-        data: {
-          id: videoId,
-          originalUrl: url,
-          platform: 'youtube',
-          title: oembed.title,
-          author: { name: oembed.author_name },
-          thumbnailUrl: oembed.thumbnail_url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-          streams: directStreams,
-          extractedVia: 'YouTube oEmbed Direct'
-        }
-      };
-    }
-
     return {
       success: false,
-      error: 'No se pudo extraer el vídeo de YouTube. Verifica que la URL sea correcta y que el vídeo no esté restringido o sea privado.'
+      error: 'No se pudo obtener el archivo de descarga para este vídeo de YouTube. Verifica la URL o que el vídeo no sea privado.'
     };
   }
 };

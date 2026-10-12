@@ -112,5 +112,8 @@ describe('YouTube Extractor Live Smoke Test', () => {
     expect(result.data?.thumbnailUrl).toBeTruthy();
     expect(result.data?.streams.length).toBeGreaterThan(0);
     expect(result.data?.streams[0].url).toBeTruthy();
+    // Critical: Ensure streams are actual downloadable files, NEVER a redirect back to youtube watch page!
+    expect(result.data?.streams[0].url).not.toMatch(/youtube\.com\/watch/);
+    expect(result.data?.streams[0].url).not.toMatch(/youtu\.be\//);
   }, 12000);
 });

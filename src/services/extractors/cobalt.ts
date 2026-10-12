@@ -1,12 +1,10 @@
 import { Extractor, ExtractionResult, MediaMetadata, StreamOption } from './types';
 
 export const DEFAULT_COBALT_INSTANCES = [
-  'https://api.qwkuns.me',
+  'https://rue-cobalt.xenon.zone',
   'https://cobaltapi.cjs.nz',
-  'https://subito-c.meowing.de',
-  'https://nuko-c.meowing.de',
-  'https://api-cobalt.eversiege.network',
-  'https://cobalt-api.lamps-dev.dev'
+  'https://api.qwkuns.me',
+  'https://api-cobalt.eversiege.network'
 ];
 
 export function getCustomCobaltInstance(): string {
@@ -43,6 +41,13 @@ export const cobaltExtractor: Extractor = {
     let lastError = 'No se pudo conectar a ninguna instancia de Cobalt.';
 
     for (const instance of candidateInstances) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6500);
+
+      if (signal) {
+        signal.addEventListener('abort', () => controller.abort(), { once: true });
+      }
+
       try {
         const endpoint = instance.endsWith('/') ? instance : `${instance}/`;
 
@@ -59,8 +64,10 @@ export const cobaltExtractor: Extractor = {
             downloadMode: 'auto',
             filenameStyle: 'basic'
           }),
-          signal
+          signal: controller.signal
         });
+
+        clearTimeout(timeout);
 
         if (!response.ok) {
           const text = await response.text().catch(() => '');
@@ -79,14 +86,48 @@ export const cobaltExtractor: Extractor = {
 
         if (data.status === 'tunnel' || data.status === 'redirect') {
           streams.push({
-            id: `cobalt-primary-${Date.now()}`,
-            label: 'Descarga Directa (Mejor Calidad)',
-            quality: 'best',
+            id: `cobalt-video-${Date.now()}`,
+            label: 'Vídeo HD (MP4 con Audio)',
+            quality: '1080',
             format: 'mp4',
             type: 'video',
             url: data.url,
             hasAudio: true
           });
+
+          // Concurrently fetch audio-only stream option from the same instance
+          try {
+            const audioResponse = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                url,
+                downloadMode: 'audio',
+                audioFormat: 'mp3',
+                filenameStyle: 'basic'
+              }),
+              signal
+            });
+            if (audioResponse.ok) {
+              const audioData = await audioResponse.json();
+              if ((audioData.status === 'tunnel' || audioData.status === 'redirect') && audioData.url) {
+                streams.push({
+                  id: `cobalt-audio-${Date.now()}`,
+                  label: 'Solo Audio (MP3)',
+                  quality: 'audio',
+                  format: 'mp3',
+                  type: 'audio',
+                  url: audioData.url,
+                  hasAudio: true
+                });
+              }
+            }
+          } catch {
+            // Audio fetch is optional; continue with primary video stream
+          }
         } else if (data.status === 'picker' && Array.isArray(data.picker)) {
           data.picker.forEach((item: any, idx: number) => {
             streams.push({
