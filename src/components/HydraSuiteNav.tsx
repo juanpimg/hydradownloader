@@ -1,0 +1,130 @@
+import { useRef, useEffect } from 'react';
+import { LayoutGrid, Film, Music, RefreshCw, Download, ExternalLink } from 'lucide-react';
+
+interface HydraSuiteNavProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const APPS = [
+  {
+    name: 'HydraCut Studio',
+    desc: 'Editor de vídeo multitrack',
+    icon: Film,
+    port: 5173,
+    color: 'from-amber-500 to-orange-500'
+  },
+  {
+    name: 'Hydra Hub',
+    desc: 'Portal y catálogo de la suite',
+    icon: LayoutGrid,
+    port: 5174,
+    color: 'from-blue-500 to-cyan-500'
+  },
+  {
+    name: 'HydraDAW',
+    desc: 'Estación de audio digital',
+    icon: Music,
+    port: 5175,
+    color: 'from-purple-500 to-indigo-500'
+  },
+  {
+    name: 'HydraConvert',
+    desc: 'Conversor multimedia local',
+    icon: RefreshCw,
+    port: 5176,
+    color: 'from-emerald-500 to-teal-500'
+  },
+  {
+    name: 'HydraDownloader',
+    desc: 'Descargador universal web',
+    icon: Download,
+    port: 5177,
+    active: true,
+    color: 'from-blue-600 to-indigo-600'
+  }
+];
+
+export function HydraSuiteNav({ isOpen, onClose }: HydraSuiteNavProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      ref={menuRef}
+      className="absolute right-0 top-12 w-80 glass-dropdown rounded-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150"
+    >
+      <div className="px-3 py-2 border-b border-black/5 dark:border-white/10 mb-2 flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wider text-[#86868b]">
+          Suite HydraApps
+        </span>
+        <span className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium px-2 py-0.5 rounded-full">
+          100% Client-Side
+        </span>
+      </div>
+
+      <div className="space-y-1">
+        {APPS.map((app) => {
+          const Icon = app.icon;
+          const href = `http://localhost:${app.port}`;
+
+          if (app.active) {
+            return (
+              <div
+                key={app.name}
+                className="flex items-center gap-3 p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 cursor-default"
+              >
+                <div className={`w-8 h-8 rounded-lg bg-gradient-to-tr ${app.color} flex items-center justify-center text-white shadow-sm`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold truncate">{app.name}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-600 text-white px-1.5 py-0.2 rounded">
+                      Actual
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-600/70 dark:text-blue-400/70 truncate">{app.desc}</p>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <a
+              key={app.name}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 text-[#1d1d1f] dark:text-[#f5f5f7] transition-colors group"
+            >
+              <div className={`w-8 h-8 rounded-lg bg-gradient-to-tr ${app.color} flex items-center justify-center text-white shadow-sm opacity-90 group-hover:opacity-100 transition-opacity`}>
+                <Icon className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-medium truncate block">{app.name}</span>
+                <p className="text-xs text-[#86868b] truncate">{app.desc}</p>
+              </div>
+              <ExternalLink className="w-3.5 h-3.5 text-[#86868b] opacity-0 group-hover:opacity-100 transition-opacity" />
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

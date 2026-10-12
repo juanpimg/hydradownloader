@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg: #f5f5f7;
+    --color-card: rgba(255, 255, 255, 0.75);
+    --color-card-solid: #ffffff;
+    --color-border: rgba(0, 0, 0, 0.08);
+    --color-text-primary: #1d1d1f;
+    --color-text-secondary: #86868b;
+    --apple-blue: #0071e3;
+    --apple-blue-hover: #0077ed;
+  }
+
+  .dark {
+    --color-bg: #000000;
+    --color-card: rgba(28, 28, 30, 0.75);
+    --color-card-solid: #1c1c1e;
+    --color-border: rgba(255, 255, 255, 0.12);
+    --color-text-primary: #f5f5f7;
+    --color-text-secondary: #a1a1a6;
+    --apple-blue: #2997ff;
+    --apple-blue-hover: #38a1ff;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
+}
+
+/* Apple Liquid Glass Utility */
+.glass-panel {
+  background: var(--color-card);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--color-border);
+}
+
+.glass-dropdown {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(30px) saturate(190%);
+  -webkit-backdrop-filter: blur(30px) saturate(190%);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.12);
+}
+
+.dark .glass-dropdown {
+  background: rgba(36, 36, 38, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(134, 134, 139, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(134, 134, 139, 0.5);
+}
