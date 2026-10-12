@@ -1,10 +1,12 @@
 import { Extractor, ExtractionResult, MediaMetadata, StreamOption } from './types';
 
 export const DEFAULT_COBALT_INSTANCES = [
-  'https://api.cobalt.tools',
-  'https://cobalt-api.kwiatekm.pl',
-  'https://cobalt.hyonsu.com/api',
-  'https://api.cobalt.lol'
+  'https://api.qwkuns.me',
+  'https://cobaltapi.cjs.nz',
+  'https://subito-c.meowing.de',
+  'https://nuko-c.meowing.de',
+  'https://api-cobalt.eversiege.network',
+  'https://cobalt-api.lamps-dev.dev'
 ];
 
 export function getCustomCobaltInstance(): string {

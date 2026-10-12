@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectPlatform } from './index';
+import { detectPlatform, extractMedia } from './index';
 import { twitterExtractor } from './twitter';
 import { tiktokExtractor } from './tiktok';
 import { redditExtractor } from './reddit';
@@ -13,6 +13,7 @@ describe('Platform Detector', () => {
     expect(detectPlatform('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe('youtube');
     expect(detectPlatform('https://youtu.be/dQw4w9WgXcQ')).toBe('youtube');
     expect(detectPlatform('https://youtube.com/shorts/3l8v_k-X4g4')).toBe('youtube');
+    expect(detectPlatform('https://www.youtube.com/embed/dQw4w9WgXcQ')).toBe('youtube');
   });
 
   it('detects Twitter/X URLs correctly', () => {
@@ -64,6 +65,7 @@ describe('Extractor Handler Matching', () => {
     expect(youtubeExtractor.canHandle('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true);
     expect(youtubeExtractor.canHandle('https://youtu.be/dQw4w9WgXcQ')).toBe(true);
     expect(youtubeExtractor.canHandle('https://youtube.com/shorts/dQw4w9WgXcQ')).toBe(true);
+    expect(youtubeExtractor.canHandle('https://youtube.com/embed/dQw4w9WgXcQ')).toBe(true);
     expect(youtubeExtractor.canHandle('https://tiktok.com')).toBe(false);
   });
 
@@ -75,9 +77,9 @@ describe('Extractor Handler Matching', () => {
 });
 
 describe('CORS Proxy Helper', () => {
-  it('wraps target URL with corsproxy.io by default', () => {
+  it('wraps target URL with codetabs by default', () => {
     const wrapped = wrapWithProxy('https://example.com/api');
-    expect(wrapped).toContain('https://corsproxy.io/?url=https%3A%2F%2Fexample.com%2Fapi');
+    expect(wrapped).toContain('https://api.codetabs.com/v1/proxy?quest=https%3A%2F%2Fexample.com%2Fapi');
   });
 
   it('returns untouched URL when direct is specified', () => {
@@ -98,4 +100,17 @@ describe('Download Manager Helpers', () => {
     expect(formatBytes(1024 * 1024 * 5.5)).toBe('5.5 MB');
     expect(formatBytes(1024 * 1024 * 1024 * 1.2)).toBe('1.2 GB');
   });
+});
+
+describe('YouTube Extractor Live Smoke Test', () => {
+  it('extracts metadata and stream options for a YouTube video', async () => {
+    const result = await extractMedia('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+    expect(result.data?.platform).toBe('youtube');
+    expect(result.data?.title).toBeTruthy();
+    expect(result.data?.thumbnailUrl).toBeTruthy();
+    expect(result.data?.streams.length).toBeGreaterThan(0);
+    expect(result.data?.streams[0].url).toBeTruthy();
+  }, 12000);
 });
