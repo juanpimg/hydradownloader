@@ -138,6 +138,40 @@ describe('Download Manager - 0-byte and error prevention', () => {
     );
   });
 
+  it('triggers direct browser save fallback when fetch fails due to CORS / network block', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    const mockClick = vi.fn();
+    const mockRemoveChild = vi.fn();
+    const mockAnchor = {
+      href: '',
+      download: '',
+      click: mockClick,
+      parentNode: { removeChild: mockRemoveChild }
+    };
+
+    (globalThis as any).document = {
+      createElement: vi.fn(() => mockAnchor),
+      body: {
+        appendChild: vi.fn(),
+        removeChild: mockRemoveChild
+      }
+    };
+
+    try {
+      const onProgress = vi.fn();
+      await expect(downloadStream(sampleStream, 'Direct Download File', onProgress)).rejects.toThrow(
+        /Failed to fetch/i
+      );
+
+      expect((globalThis as any).document.createElement).toHaveBeenCalledWith('a');
+      expect(mockAnchor.href).toBe(sampleStream.url);
+      expect(mockAnchor.download).toBe('Direct_Download_File.mp4');
+      expect(mockClick).toHaveBeenCalled();
+    } finally {
+      delete (globalThis as any).document;
+    }
+  });
+
   it('rejects when response body is null', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,

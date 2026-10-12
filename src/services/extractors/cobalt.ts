@@ -1,4 +1,5 @@
 import { Extractor, ExtractionResult, MediaMetadata, StreamOption } from './types';
+import { getSettings, saveSettings } from '../storage';
 
 export const DEFAULT_COBALT_INSTANCES = [
   'https://rue-cobalt.xenon.zone',
@@ -7,11 +8,13 @@ export const DEFAULT_COBALT_INSTANCES = [
 
 export function getCustomCobaltInstance(): string {
   try {
-    const custom = localStorage.getItem('hydra_cobalt_instance');
+    const settings = getSettings();
+    const custom = settings.cobaltInstance;
     if (
       custom &&
       !custom.includes('qwkuns.me') &&
-      !custom.includes('eversiege.network')
+      !custom.includes('eversiege.network') &&
+      custom !== 'https://api.cobalt.tools'
     ) {
       return custom;
     }
@@ -23,7 +26,7 @@ export function getCustomCobaltInstance(): string {
 
 export function setCustomCobaltInstance(instanceUrl: string): void {
   try {
-    localStorage.setItem('hydra_cobalt_instance', instanceUrl.trim().replace(/\/$/, ''));
+    saveSettings({ cobaltInstance: instanceUrl.trim().replace(/\/$/, '') });
   } catch {
     // ignore
   }

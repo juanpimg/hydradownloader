@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { detectPlatform, extractMedia } from './index';
 import { twitterExtractor } from './twitter';
 import { tiktokExtractor } from './tiktok';
@@ -117,3 +117,126 @@ describe('YouTube Extractor Live Smoke Test', () => {
     expect(result.data?.streams[0].url).not.toMatch(/youtu\.be\//);
   }, 12000);
 });
+
+describe('Storage & Settings Unification', () => {
+  const originalLocalStorage = globalThis.localStorage;
+  let mockStorage: Record<string, string> = {};
+
+  beforeEach(async () => {
+    mockStorage = {};
+    const storageMock = {
+      getItem: (key: string) => mockStorage[key] || null,
+      setItem: (key: string, val: string) => { mockStorage[key] = val; },
+      removeItem: (key: string) => { delete mockStorage[key]; },
+      clear: () => { mockStorage = {}; }
+    };
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: storageMock,
+      writable: true,
+      configurable: true
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: originalLocalStorage,
+      writable: true,
+      configurable: true
+    });
+  });
+
+  it('defaults Cobalt instance to rue-cobalt.xenon.zone', async () => {
+    const { getSettings } = await import('../storage');
+    const settings = getSettings();
+    expect(settings.cobaltInstance).toBe('https://rue-cobalt.xenon.zone');
+  });
+
+  it('automatically migrates deprecated api.cobalt.tools to rue-cobalt.xenon.zone', async () => {
+    const { getSettings, SETTINGS_KEY } = await import('../storage');
+    mockStorage[SETTINGS_KEY] = JSON.stringify({ cobaltInstance: 'https://api.cobalt.tools' });
+    const settings = getSettings();
+    expect(settings.cobaltInstance).toBe('https://rue-cobalt.xenon.zone');
+  });
+
+  it('getCustomCobaltInstance respects unified settings key hydra_downloader_settings', async () => {
+    const { getCustomCobaltInstance, setCustomCobaltInstance } = await import('./cobalt');
+    const { getSettings } = await import('../storage');
+    setCustomCobaltInstance('https://custom-cobalt.example.com/');
+    expect(getCustomCobaltInstance()).toBe('https://custom-cobalt.example.com');
+    expect(getSettings().cobaltInstance).toBe('https://custom-cobalt.example.com');
+  });
+
+  it('getCustomCorsProxy respects unified settings key hydra_downloader_settings', async () => {
+    const { getCustomCorsProxy, setCustomCorsProxy } = await import('./cors');
+    const { getSettings } = await import('../storage');
+    setCustomCorsProxy('https://proxy.example.com/?url={url} ');
+    expect(getCustomCorsProxy()).toBe('https://proxy.example.com/?url={url}');
+    expect(getSettings().customCorsProxy).toBe('https://proxy.example.com/?url={url}');
+  });
+
+  it('migrates legacy storage keys to hydra_downloader_settings when settings key is absent', async () => {
+    const { getSettings, SETTINGS_KEY } = await import('../storage');
+    mockStorage['hydra_cobalt_instance'] = 'https://legacy-cobalt.xenon.zone';
+    mockStorage['hydra_cors_proxy'] = 'https://legacy-proxy.com/?url={url}';
+    delete mockStorage[SETTINGS_KEY];
+
+    const settings = getSettings();
+    expect(settings.cobaltInstance).toBe('https://legacy-cobalt.xenon.zone');
+    expect(settings.customCorsProxy).toBe('https://legacy-proxy.com/?url={url}');
+    expect(mockStorage[SETTINGS_KEY]).toBeDefined();
+  });
+});
+
+describe('Twitter Extractor Format Accuracy', () => {
+  it('maps video accurately and never exposes video MP4 URLs as .m4a audio', async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async (url: any) => {
+        if (typeof url === 'string' && url.includes('api.fxtwitter.com')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              code: 200,
+              message: 'OK',
+              tweet: {
+                id: '1234567890',
+                text: 'Test tweet with video',
+                author: { name: 'Tester', screen_name: 'tester' },
+                media: {
+                  videos: [
+                    {
+                      type: 'video',
+                      url: 'https://video.twimg.com/amplify_video/123/vid/avc1/720x1280/video.mp4',
+                      duration: 15,
+                      width: 720,
+                      height: 1280
+                    }
+                  ]
+                }
+              }
+            })
+          } as unknown as Response;
+        }
+        return { ok: false, status: 404 } as unknown as Response;
+      };
+
+      const result = await twitterExtractor.extract('https://x.com/tester/status/1234567890');
+      expect(result.success).toBe(true);
+      expect(result.data?.streams.length).toBeGreaterThan(0);
+
+      // Verify no stream presents an MP4 video URL as an .m4a audio stream
+      for (const s of result.data!.streams) {
+        if (s.format === 'm4a') {
+          expect(s.url).not.toMatch(/\.mp4(\?|$)/i);
+        }
+        if (s.type === 'video') {
+          expect(s.format).toBe('mp4');
+        }
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+

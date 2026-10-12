@@ -1,4 +1,5 @@
 // Service to handle CORS bypass in the browser using public and custom CORS proxies
+import { getSettings, saveSettings } from '../storage';
 
 export const DEFAULT_CORS_PROXIES = [
   { id: 'direct', name: 'Directo (Sin Proxy - CORS Nativo)', template: '{url}' },
@@ -8,7 +9,8 @@ export const DEFAULT_CORS_PROXIES = [
 
 export function getCustomCorsProxy(): string {
   try {
-    return localStorage.getItem('hydra_cors_proxy') || '';
+    const settings = getSettings();
+    return settings.customCorsProxy || '';
   } catch {
     return '';
   }
@@ -16,7 +18,7 @@ export function getCustomCorsProxy(): string {
 
 export function setCustomCorsProxy(proxyUrl: string): void {
   try {
-    localStorage.setItem('hydra_cors_proxy', proxyUrl.trim());
+    saveSettings({ customCorsProxy: proxyUrl.trim() });
   } catch {
     // ignore
   }

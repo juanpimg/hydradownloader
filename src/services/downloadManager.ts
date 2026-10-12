@@ -63,7 +63,26 @@ export async function downloadStream(
 
   try {
     const startTime = Date.now();
-    const response = await fetch(stream.url, { signal });
+    let response: Response;
+    try {
+      response = await fetch(stream.url, { signal });
+    } catch (fetchErr: any) {
+      if (signal?.aborted) throw fetchErr;
+
+      // If direct fetch() fails due to CORS or network blockage, provide graceful fallback to direct browser save
+      const isCorsOrNetwork =
+        fetchErr instanceof TypeError ||
+        /failed to fetch|network\s*error|cors|load failed|cross-origin/i.test(fetchErr?.message || '');
+
+      if (isCorsOrNetwork && stream.url) {
+        try {
+          triggerBrowserSave(stream.url, filename);
+        } catch {
+          // ignore
+        }
+      }
+      throw fetchErr;
+    }
 
     if (!response.ok) {
       throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
@@ -182,13 +201,19 @@ export async function downloadStream(
       return;
     }
 
+    const isCorsOrNetwork =
+      err instanceof TypeError ||
+      /failed to fetch|network\s*error|cors|load failed|cross-origin/i.test(err?.message || '');
+
     notify({
       isDownloading: false,
       progress: 0,
       bytesReceived: 0,
       totalBytes: 0,
       speed: 'Error',
-      error: err.message || 'Error en la descarga'
+      error: isCorsOrNetwork
+        ? `${err.message || 'Bloqueo CORS / Red'}. Se ha iniciado la descarga directa en tu navegador.`
+        : (err.message || 'Error en la descarga')
     });
 
     throw err;

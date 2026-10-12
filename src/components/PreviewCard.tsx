@@ -1,4 +1,4 @@
-import { useState, useId } from 'react';
+import { useState, useId, useEffect } from 'react';
 import { MediaMetadata, StreamOption } from '../services/extractors/types';
 import { Download, Film, Music, Copy, Check, Clock, User } from 'lucide-react';
 import { SegmentedControl } from './SegmentedControl';
@@ -20,20 +20,41 @@ function formatDuration(seconds?: number): string {
 
 export function PreviewCard({ media, preferredMode, onDownload, isDownloading }: PreviewCardProps) {
   const qualitySelectId = useId();
-  const [mode, setMode] = useState<'video' | 'audio'>(preferredMode);
-  const [copied, setCopied] = useState(false);
 
   // Filter streams by current mode
   const videoStreams = media.streams.filter((s) => s.type === 'video');
   const audioStreams = media.streams.filter((s) => s.type === 'audio');
+  const isAudioOnly = videoStreams.length === 0 && audioStreams.length > 0;
 
-  const availableStreams = mode === 'video'
+  const [mode, setMode] = useState<'video' | 'audio'>(() => {
+    if (isAudioOnly) return 'audio';
+    return preferredMode;
+  });
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (isAudioOnly) {
+      setMode('audio');
+    } else if (audioStreams.length === 0 && videoStreams.length > 0) {
+      setMode('video');
+    }
+  }, [isAudioOnly, audioStreams.length, videoStreams.length]);
+
+  const effectiveMode = isAudioOnly ? 'audio' : mode;
+
+  const availableStreams = effectiveMode === 'video'
     ? (videoStreams.length > 0 ? videoStreams : media.streams)
     : (audioStreams.length > 0 ? audioStreams : media.streams);
 
   const [selectedStreamId, setSelectedStreamId] = useState<string>(
     availableStreams[0]?.id || media.streams[0]?.id || ''
   );
+
+  useEffect(() => {
+    if (!availableStreams.some((s) => s.id === selectedStreamId)) {
+      setSelectedStreamId(availableStreams[0]?.id || media.streams[0]?.id || '');
+    }
+  }, [availableStreams, selectedStreamId]);
 
   const activeStream =
     availableStreams.find((s) => s.id === selectedStreamId) ||
@@ -75,7 +96,7 @@ export function PreviewCard({ media, preferredMode, onDownload, isDownloading }:
           </div>
         ) : (
           <div className="w-full sm:w-48 aspect-video sm:aspect-[4/3] rounded-2xl bg-black/5 dark:bg-white/5 flex-shrink-0 flex items-center justify-center text-[#86868b]">
-            {mode === 'video' ? <Film className="w-10 h-10 stroke-[1.5]" /> : <Music className="w-10 h-10 stroke-[1.5]" />}
+            {effectiveMode === 'video' ? <Film className="w-10 h-10 stroke-[1.5]" /> : <Music className="w-10 h-10 stroke-[1.5]" />}
           </div>
         )}
 
@@ -104,7 +125,7 @@ export function PreviewCard({ media, preferredMode, onDownload, isDownloading }:
             {videoStreams.length > 0 && audioStreams.length > 0 && (
               <div className="mb-4">
                 <SegmentedControl
-                  value={mode}
+                  value={effectiveMode}
                   onChange={(newMode) => {
                     setMode(newMode);
                     const targetList = newMode === 'video' ? videoStreams : audioStreams;
@@ -148,9 +169,9 @@ export function PreviewCard({ media, preferredMode, onDownload, isDownloading }:
                 disabled={isDownloading || !activeStream}
                 className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold shadow-apple-subtle transition-all duration-150 active:scale-[0.98] disabled:opacity-50"
               >
-                <Download className="w-4 h-4" />
+                {effectiveMode === 'audio' ? <Music className="w-4 h-4" /> : <Download className="w-4 h-4" />}
                 <span>
-                  {mode === 'audio' ? 'Descargar Audio' : 'Descargar Vídeo'}
+                  {effectiveMode === 'audio' ? 'Descargar Audio' : 'Descargar Vídeo'}
                 </span>
                 {activeStream?.format && (
                   <span className="text-[11px] opacity-80 uppercase font-mono">

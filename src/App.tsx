@@ -108,6 +108,19 @@ export function App() {
       });
       setHistory(getHistory());
     } catch (err: any) {
+      const isCorsOrNetwork = /failed to fetch|network\s*error|cors|bloqueo cors/i.test(err?.message || '');
+      if (isCorsOrNetwork) {
+        addToHistory({
+          title: media.title,
+          platform: media.platform,
+          format: stream.format,
+          quality: stream.quality,
+          originalUrl: media.originalUrl,
+          streamUrl: stream.url,
+          thumbnailUrl: media.thumbnailUrl
+        });
+        setHistory(getHistory());
+      }
       setError(`Error durante la descarga: ${err.message}`);
     }
   };
@@ -134,7 +147,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f5f5f7] dark:bg-[#000000] text-[#1d1d1f] dark:text-[#f5f5f7] transition-colors selection:bg-blue-500/20">
+    <div className="min-h-screen flex flex-col bg-[#f5f5f7] dark:bg-[#000000] text-[#1d1d1f] dark:text-[#f5f5f7] transition-colors selection:bg-blue-500/20 overflow-x-hidden">
       {/* Translucent Apple Header */}
       <Header
         theme={theme}

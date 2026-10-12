@@ -39,8 +39,31 @@ export const twitterExtractor: Extractor = {
 
       const streams: StreamOption[] = [];
 
-      // Add high quality video stream
-      if (primaryVideo.url) {
+      // Check for available video variants or multiple qualities
+      if (primaryVideo.variants && Array.isArray(primaryVideo.variants) && primaryVideo.variants.length > 0) {
+        const validVariants = primaryVideo.variants
+          .filter((v: any) => v.url && typeof v.url === 'string')
+          .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
+
+        validVariants.forEach((v: any, idx: number) => {
+          const isAudioOnly = v.content_type?.startsWith('audio/') || /\.(m4a|mp3|aac|ogg)(\?|$)/i.test(v.url);
+          const heightMatch = v.url.match(/\/(\d+)x(\d+)\//);
+          const resLabel = heightMatch ? `${heightMatch[2]}p` : (v.bitrate ? `${Math.round(v.bitrate / 1000)}kbps` : `Opción ${idx + 1}`);
+
+          streams.push({
+            id: `tw-${isAudioOnly ? 'audio' : 'video'}-${statusId}-${idx}`,
+            label: isAudioOnly ? `Audio (${resLabel})` : `${resLabel} (MP4)`,
+            quality: resLabel,
+            format: isAudioOnly ? 'm4a' : 'mp4',
+            type: isAudioOnly ? 'audio' : 'video',
+            url: v.url,
+            hasAudio: primaryVideo.type !== 'gif'
+          });
+        });
+      }
+
+      // If no variants extracted yet, use primaryVideo.url as video
+      if (streams.length === 0 && primaryVideo.url) {
         streams.push({
           id: `tw-video-${statusId}`,
           label: primaryVideo.width && primaryVideo.height ? `${primaryVideo.height}p (MP4)` : 'Calidad Original (MP4)',
@@ -49,19 +72,6 @@ export const twitterExtractor: Extractor = {
           type: 'video',
           url: primaryVideo.url,
           hasAudio: primaryVideo.type !== 'gif'
-        });
-      }
-
-      // Add audio-only stream option if available
-      if (primaryVideo.url && primaryVideo.type !== 'gif') {
-        streams.push({
-          id: `tw-audio-${statusId}`,
-          label: 'Solo Audio (Extraído)',
-          quality: 'audio',
-          format: 'm4a',
-          type: 'audio',
-          url: primaryVideo.url,
-          hasAudio: true
         });
       }
 
