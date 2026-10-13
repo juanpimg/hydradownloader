@@ -76,8 +76,13 @@ export function clearHistory(): void {
   }
 }
 
+let memorySettings: AppSettings = { ...DEFAULT_SETTINGS };
+
 export function getSettings(): AppSettings {
   try {
+    if (typeof localStorage === 'undefined') {
+      return memorySettings;
+    }
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) {
       // Migrate legacy keys if they exist
@@ -90,18 +95,21 @@ export function getSettings(): AppSettings {
           ...(legacyCors ? { customCorsProxy: legacyCors.trim() } : {})
         };
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(migrated));
+        memorySettings = migrated;
         return migrated;
       }
-      return DEFAULT_SETTINGS;
+      return memorySettings;
     }
     const parsed = JSON.parse(raw);
     // Auto-migrate away from deprecated api.cobalt.tools
     if (!parsed.cobaltInstance || parsed.cobaltInstance.includes('api.cobalt.tools')) {
       parsed.cobaltInstance = DEFAULT_SETTINGS.cobaltInstance;
     }
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    const result = { ...DEFAULT_SETTINGS, ...parsed };
+    memorySettings = result;
+    return result;
   } catch {
-    return DEFAULT_SETTINGS;
+    return memorySettings;
   }
 }
 
@@ -109,16 +117,19 @@ export function saveSettings(settings: Partial<AppSettings>): AppSettings {
   try {
     const current = getSettings();
     const updated = { ...current, ...settings };
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
-    // Keep legacy keys in sync for external or backward compatibility
-    if (updated.cobaltInstance) {
-      localStorage.setItem('hydra_cobalt_instance', updated.cobaltInstance);
-    }
-    if (typeof updated.customCorsProxy === 'string') {
-      localStorage.setItem('hydra_cors_proxy', updated.customCorsProxy);
+    memorySettings = updated;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+      // Keep legacy keys in sync for external or backward compatibility
+      if (updated.cobaltInstance) {
+        localStorage.setItem('hydra_cobalt_instance', updated.cobaltInstance);
+      }
+      if (typeof updated.customCorsProxy === 'string') {
+        localStorage.setItem('hydra_cors_proxy', updated.customCorsProxy);
+      }
     }
     return updated;
   } catch {
-    return DEFAULT_SETTINGS;
+    return memorySettings;
   }
 }

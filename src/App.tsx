@@ -112,11 +112,7 @@ export function App() {
       });
       setHistory(getHistory());
     } catch (err: any) {
-      const isCorsOrNetwork =
-        err instanceof TypeError ||
-        /failed to fetch|network\s*error|cors|load failed|cross-origin|bloqueo cors/i.test(err?.message || '');
-
-      if (isCorsOrNetwork) {
+      if (err?.isBrowserSaveInitiated) {
         addToHistory({
           title: media.title,
           platform: media.platform,
@@ -152,11 +148,7 @@ export function App() {
         setProgressState(state);
       });
     } catch (err: any) {
-      const isCorsOrNetwork =
-        err instanceof TypeError ||
-        /failed to fetch|network\s*error|cors|load failed|cross-origin|bloqueo cors/i.test(err?.message || '');
-
-      if (isCorsOrNetwork) {
+      if (err?.isBrowserSaveInitiated) {
         setDownloadNotice('Descarga iniciada directamente en tu navegador debido a restricciones de seguridad CORS del servidor de origen.');
         return;
       }

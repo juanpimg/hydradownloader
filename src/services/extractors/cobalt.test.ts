@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { probeTunnelUrl, cobaltExtractor, DEFAULT_COBALT_INSTANCES } from './cobalt';
+import {
+  probeTunnelUrl,
+  cobaltExtractor,
+  DEFAULT_COBALT_INSTANCES,
+  getCandidateCobaltInstances,
+  normalizeInstanceUrl,
+  setCustomCobaltInstance
+} from './cobalt';
+import { saveSettings } from '../storage';
 
 describe('Cobalt Extractor & Tunnel Validation', () => {
   const originalFetch = globalThis.fetch;
@@ -307,6 +315,41 @@ describe('Cobalt Extractor & Tunnel Validation', () => {
 
       const isValid = await probeTunnelUrl('https://tunnel.example.com/stream-sec-neg.mp4');
       expect(isValid).toBe(false);
+    });
+  });
+
+  describe('Candidate Instance Resolution & Prioritization (Open Issue 4)', () => {
+    it('normalizes URLs by stripping trailing slashes and prefixing https', () => {
+      expect(normalizeInstanceUrl('http://my-cobalt.org/')).toBe('http://my-cobalt.org');
+      expect(normalizeInstanceUrl('  my-cobalt.org/// ')).toBe('https://my-cobalt.org');
+      expect(normalizeInstanceUrl('')).toBe('');
+    });
+
+    it('prioritizes user-configured custom instance first in candidate pool', () => {
+      setCustomCobaltInstance('https://custom-private.cobalt.org/');
+      const candidates = getCandidateCobaltInstances();
+
+      expect(candidates[0]).toBe('https://custom-private.cobalt.org');
+      expect(candidates).toContain(DEFAULT_COBALT_INSTANCES[0]);
+      expect(candidates).toContain(DEFAULT_COBALT_INSTANCES[1]);
+      expect(candidates.length).toBe(3);
+    });
+
+    it('deduplicates candidate instances when custom instance matches a default instance', () => {
+      setCustomCobaltInstance(DEFAULT_COBALT_INSTANCES[1]);
+      const candidates = getCandidateCobaltInstances();
+
+      expect(candidates[0]).toBe(DEFAULT_COBALT_INSTANCES[1]);
+      expect(candidates[1]).toBe(DEFAULT_COBALT_INSTANCES[0]);
+      expect(candidates.length).toBe(2);
+    });
+
+    it('filters out deprecated instances from custom candidate slot', () => {
+      saveSettings({ cobaltInstance: 'https://api.cobalt.tools' });
+      const candidates = getCandidateCobaltInstances();
+
+      expect(candidates[0]).toBe(DEFAULT_COBALT_INSTANCES[0]);
+      expect(candidates).not.toContain('https://api.cobalt.tools');
     });
   });
 });

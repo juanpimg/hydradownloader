@@ -69,13 +69,72 @@ export async function downloadStream(
     speed: 'Iniciando descarga...'
   });
 
+  const internalController = new AbortController();
+  let isInternalStall = false;
+  let stallReason: string | null = null;
+  let browserSaveAttempted = false;
+  let activeReader: any = null;
+
+  const onUserAbort = () => {
+    internalController.abort();
+    if (activeReader) {
+      try {
+        activeReader.cancel().catch(() => {});
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  if (signal) {
+    signal.addEventListener('abort', onUserAbort, { once: true });
+  }
+
+  let stallTimer: ReturnType<typeof setTimeout> | null = null;
+  const CONNECT_TIMEOUT_MS = 20000;
+  const STALL_TIMEOUT_MS = 25000;
+
+  const resetStallWatchdog = (
+    timeoutMs = STALL_TIMEOUT_MS,
+    reason = 'La descarga se detuvo por inactividad prolongada (conexión interrumpida).'
+  ) => {
+    if (stallTimer) clearTimeout(stallTimer);
+    stallTimer = setTimeout(() => {
+      isInternalStall = true;
+      stallReason = reason;
+      internalController.abort();
+      if (activeReader) {
+        try {
+          activeReader.cancel().catch(() => {});
+        } catch {
+          // ignore
+        }
+      }
+    }, timeoutMs);
+  };
+
+  const clearStallWatchdog = () => {
+    if (stallTimer) {
+      clearTimeout(stallTimer);
+      stallTimer = null;
+    }
+  };
+
   try {
     const startTime = Date.now();
     let response: Response;
+
+    resetStallWatchdog(CONNECT_TIMEOUT_MS, 'Tiempo de espera agotado al conectar con el servidor de descarga.');
+
     try {
-      response = await fetch(stream.url, { signal });
+      response = await fetch(stream.url, { signal: internalController.signal });
     } catch (fetchErr: any) {
+      clearStallWatchdog();
       if (signal?.aborted) throw fetchErr;
+
+      if (isInternalStall) {
+        throw new Error(`Error de red: ${stallReason || 'Tiempo de espera agotado.'}`);
+      }
 
       // If direct fetch() fails due to CORS or network blockage, provide graceful fallback to direct browser save
       const isCorsOrNetwork =
@@ -85,11 +144,26 @@ export async function downloadStream(
       if (isCorsOrNetwork && stream.url) {
         try {
           triggerBrowserSave(stream.url, filename);
+          browserSaveAttempted = true;
+          fetchErr.isBrowserSaveInitiated = true;
         } catch {
           // ignore
         }
       }
       throw fetchErr;
+    } finally {
+      clearStallWatchdog();
+    }
+
+    if (signal?.aborted || internalController.signal.aborted) {
+      notify({
+        isDownloading: false,
+        progress: 0,
+        bytesReceived: 0,
+        totalBytes: 0,
+        speed: 'Cancelado'
+      });
+      return;
     }
 
     if (!response.ok) {
@@ -107,11 +181,11 @@ export async function downloadStream(
     const clNum = cl !== null ? parseInt(cl.trim(), 10) : null;
     const eclNum = ecl !== null ? parseInt(ecl.trim(), 10) : null;
 
-    if (clNum !== null && clNum <= 0) {
+    if (clNum !== null && (isNaN(clNum) || clNum <= 0)) {
       throw new Error('El servidor devolvió una respuesta vacía (0 bytes).');
     }
 
-    if (eclNum !== null && eclNum <= 0) {
+    if (eclNum !== null && (isNaN(eclNum) || eclNum <= 0)) {
       throw new Error('El servidor devolvió una respuesta vacía (0 bytes). El enlace de descarga fue bloqueado o no contiene datos.');
     }
 
@@ -119,9 +193,9 @@ export async function downloadStream(
       throw new Error('El servidor devolvió una respuesta vacía (0 bytes).');
     }
 
-    const total = (clNum !== null && clNum > 0)
+    const total = (clNum !== null && !isNaN(clNum) && clNum > 0)
       ? clNum
-      : ((eclNum !== null && eclNum > 0)
+      : ((eclNum !== null && !isNaN(eclNum) && eclNum > 0)
         ? eclNum
         : (stream.fileSize || 0));
 
@@ -130,8 +204,11 @@ export async function downloadStream(
     }
 
     const reader = response.body.getReader();
+    activeReader = reader;
     const chunks: BlobPart[] = [];
     let received = 0;
+
+    resetStallWatchdog(STALL_TIMEOUT_MS, 'La conexión se interrumpió durante la transferencia (pausa de red superior a 25s).');
 
     try {
       while (true) {
@@ -141,6 +218,7 @@ export async function downloadStream(
         if (value) {
           chunks.push(value);
           received += value.length;
+          resetStallWatchdog(STALL_TIMEOUT_MS, 'La conexión se interrumpió durante la transferencia (pausa de red superior a 25s).');
         }
 
         const elapsedSec = (Date.now() - startTime) / 1000;
@@ -156,7 +234,39 @@ export async function downloadStream(
         });
       }
     } finally {
+      activeReader = null;
+      clearStallWatchdog();
+      if (signal?.aborted || isInternalStall) {
+        reader.cancel().catch(() => {});
+      }
       reader.releaseLock();
+      if (signal) {
+        signal.removeEventListener('abort', onUserAbort);
+      }
+    }
+
+    if (signal?.aborted) {
+      notify({
+        isDownloading: false,
+        progress: 0,
+        bytesReceived: 0,
+        totalBytes: 0,
+        speed: 'Cancelado'
+      });
+      return;
+    }
+
+    if (isInternalStall) {
+      const stallErr = new Error(`Error de red: ${stallReason || 'Conexión interrumpida por inactividad de red.'}`);
+      notify({
+        isDownloading: false,
+        progress: 0,
+        bytesReceived: 0,
+        totalBytes: 0,
+        speed: 'Error',
+        error: stallErr.message
+      });
+      throw stallErr;
     }
 
     if (received === 0) {
@@ -216,6 +326,7 @@ export async function downloadStream(
       speed: 'Completado'
     });
   } catch (err: any) {
+    clearStallWatchdog();
     if (signal?.aborted) {
       notify({
         isDownloading: false,
@@ -227,9 +338,18 @@ export async function downloadStream(
       return;
     }
 
-    const isCorsOrNetwork =
-      err instanceof TypeError ||
-      /failed to fetch|network\s*error|cors|load failed|cross-origin/i.test(err?.message || '');
+    if (isInternalStall) {
+      const stallErr = new Error(`Error de red: ${stallReason || 'Conexión interrumpida por inactividad de red.'}`);
+      notify({
+        isDownloading: false,
+        progress: 0,
+        bytesReceived: 0,
+        totalBytes: 0,
+        speed: 'Error',
+        error: stallErr.message
+      });
+      throw stallErr;
+    }
 
     notify({
       isDownloading: false,
@@ -237,7 +357,7 @@ export async function downloadStream(
       bytesReceived: 0,
       totalBytes: 0,
       speed: 'Error',
-      error: isCorsOrNetwork
+      error: browserSaveAttempted
         ? `${err.message || 'Bloqueo CORS / Red'}. Se ha iniciado la descarga directa en tu navegador.`
         : (err.message || 'Error en la descarga')
     });
@@ -256,7 +376,7 @@ export function triggerBrowserSave(url: string, filename: string): void {
   document.body.appendChild(a);
   a.click();
   setTimeout(() => {
-    if (a.parentNode) {
+    if (typeof document !== 'undefined' && a.parentNode) {
       document.body.removeChild(a);
     }
   }, 100);

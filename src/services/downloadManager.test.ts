@@ -292,6 +292,83 @@ describe('Download Manager - 0-byte and error prevention', () => {
     );
   });
 
+  it('rejects immediately when Content-Length is malformed or NaN', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        'content-length': 'invalid-not-a-number'
+      }),
+      body: new ReadableStream({
+        start(controller) {
+          controller.close();
+        }
+      })
+    } as unknown as Response);
+
+    const onProgress = vi.fn();
+    await expect(downloadStream(sampleStream, 'NaN Content Length', onProgress)).rejects.toThrow(
+      /respuesta vacía \(0 bytes\)/i
+    );
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('rejects immediately when estimated-content-length is malformed or NaN', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        'estimated-content-length': 'abc'
+      }),
+      body: new ReadableStream({
+        start(controller) {
+          controller.close();
+        }
+      })
+    } as unknown as Response);
+
+    const onProgress = vi.fn();
+    await expect(downloadStream(sampleStream, 'NaN Estimated Length', onProgress)).rejects.toThrow(
+      /respuesta vacía \(0 bytes\)/i
+    );
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('aborts and cancels reader when user signal aborts mid-stream', async () => {
+    const abortCtrl = new AbortController();
+    const cancelSpy = vi.fn().mockResolvedValue(undefined);
+
+    const mockStream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2, 3]));
+      },
+      cancel: cancelSpy
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-length': '100' }),
+      body: mockStream
+    } as unknown as Response);
+
+    const onProgress = vi.fn();
+    const downloadPromise = downloadStream(sampleStream, 'Abort Test', onProgress, abortCtrl.signal);
+    
+    // Allow stream to initialize and process first chunk before aborting mid-stream
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    abortCtrl.abort();
+    await downloadPromise;
+
+    expect(cancelSpy).toHaveBeenCalled();
+    expect(onProgress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isDownloading: false,
+        speed: 'Cancelado'
+      })
+    );
+  });
+
   it('correctly sets MIME types for audio, image, and video', async () => {
     const testData = new Uint8Array([10, 20, 30]);
 

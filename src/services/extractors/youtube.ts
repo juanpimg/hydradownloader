@@ -25,8 +25,16 @@ async function fetchYouTubeOEmbed(url: string, signal?: AbortSignal): Promise<OE
   ];
 
   for (const ep of endpoints) {
+    if (signal?.aborted) return null;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3500);
+    const abortHandler = () => controller.abort();
+    if (signal) {
+      signal.addEventListener('abort', abortHandler, { once: true });
+    }
+
     try {
-      const res = await fetch(ep, { signal });
+      const res = await fetch(ep, { signal: controller.signal });
       if (res.ok) {
         const data = await res.json();
         if (data && data.title) {
@@ -35,6 +43,11 @@ async function fetchYouTubeOEmbed(url: string, signal?: AbortSignal): Promise<OE
       }
     } catch {
       // try next
+    } finally {
+      clearTimeout(timeout);
+      if (signal) {
+        signal.removeEventListener('abort', abortHandler);
+      }
     }
   }
   return null;
@@ -83,8 +96,16 @@ async function fetchInvidiousVideo(
  * Fetch dynamic healthy Invidious instances from public registry
  */
 async function fetchHealthyInvidiousInstances(signal?: AbortSignal): Promise<string[]> {
+  if (signal?.aborted) return [];
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+  const abortHandler = () => controller.abort();
+  if (signal) {
+    signal.addEventListener('abort', abortHandler, { once: true });
+  }
+
   try {
-    const res = await fetch('https://api.invidious.io/instances.json?sort_by=health', { signal });
+    const res = await fetch('https://api.invidious.io/instances.json?sort_by=health', { signal: controller.signal });
     if (!res.ok) return [];
     const list = await res.json();
     if (!Array.isArray(list)) return [];
@@ -100,6 +121,11 @@ async function fetchHealthyInvidiousInstances(signal?: AbortSignal): Promise<str
     return healthy;
   } catch {
     return [];
+  } finally {
+    clearTimeout(timeout);
+    if (signal) {
+      signal.removeEventListener('abort', abortHandler);
+    }
   }
 }
 

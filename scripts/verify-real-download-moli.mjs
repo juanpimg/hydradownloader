@@ -171,12 +171,17 @@ async function main() {
   }
   console.log('✓ Test 2 Passed: downloadStream rejected 0-byte response and never triggered browser save.\n');
 
-  // --- Test 3: Instance Failover in Cobalt Extractor ---
-  console.log('[Test 3/4] Verifying Cobalt extractor fails over across candidate instances...');
+  // --- Test 3: Candidate Prioritization & Instance Failover in Cobalt Extractor ---
+  console.log('[Test 3/4] Verifying Cobalt candidate prioritization and failover across instances...');
   const test3Code = `
     (async () => {
-      const { cobaltExtractor } = await import('/src/services/extractors/cobalt.ts');
+      const { cobaltExtractor, getCandidateCobaltInstances, setCustomCobaltInstance } = await import('/src/services/extractors/cobalt.ts');
       const origFetch = window.fetch;
+
+      // Verify custom instance prioritization in candidate pool
+      setCustomCobaltInstance('https://my-custom.cobalt.test/');
+      const candidates = getCandidateCobaltInstances();
+      const customPrioritized = candidates[0] === 'https://my-custom.cobalt.test';
 
       try {
         // Mock first instance returning tunnel with estimated-content-length: -1
@@ -213,10 +218,11 @@ async function main() {
 
         const result = await cobaltExtractor.extract('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
         return JSON.stringify({
+          customPrioritized,
           success: result.success,
           failoverOccurred: callCount >= 2,
           streamUrl: result.data?.streams?.[0]?.url,
-          passed: result.success === true && callCount >= 2 && result.data?.streams?.[0]?.url?.includes('tunnel-2')
+          passed: customPrioritized && result.success === true && callCount >= 2 && result.data?.streams?.[0]?.url?.includes('tunnel-2')
         });
       } finally {
         window.fetch = origFetch;
@@ -228,9 +234,9 @@ async function main() {
   const test3Result = JSON.parse(test3ResultRaw);
   console.log('Result:', test3Result);
   if (!test3Result.passed) {
-    throw new Error(`Test 3 Failed: Extractor failover failed: ${JSON.stringify(test3Result)}`);
+    throw new Error(`Test 3 Failed: Extractor failover or candidate prioritization failed: ${JSON.stringify(test3Result)}`);
   }
-  console.log('✓ Test 3 Passed: Cobalt extractor automatically failed over to next healthy instance.\n');
+  console.log('✓ Test 3 Passed: Cobalt extractor prioritized custom instance and failed over to next healthy instance.\n');
 
   // --- Test 4: Real End-to-End Extraction & Download of Real YouTube Media Bytes ---
   console.log('[Test 4/4] Executing real YouTube download transfer in Moli browser session...');

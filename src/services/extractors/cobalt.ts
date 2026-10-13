@@ -6,10 +6,19 @@ export const DEFAULT_COBALT_INSTANCES = [
   'https://cobaltapi.cjs.nz'
 ];
 
+export function normalizeInstanceUrl(url: string): string {
+  let cleaned = (url || '').trim().replace(/\/+$/, '');
+  if (!cleaned) return '';
+  if (!/^https?:\/\//i.test(cleaned)) {
+    cleaned = `https://${cleaned}`;
+  }
+  return cleaned;
+}
+
 export function getCustomCobaltInstance(): string {
   try {
     const settings = getSettings();
-    const custom = settings.cobaltInstance;
+    const custom = normalizeInstanceUrl(settings.cobaltInstance);
     if (
       custom &&
       !custom.includes('qwkuns.me') &&
@@ -26,10 +35,32 @@ export function getCustomCobaltInstance(): string {
 
 export function setCustomCobaltInstance(instanceUrl: string): void {
   try {
-    saveSettings({ cobaltInstance: instanceUrl.trim().replace(/\/$/, '') });
+    saveSettings({ cobaltInstance: normalizeInstanceUrl(instanceUrl) });
   } catch {
     // ignore
   }
+}
+
+export function getCandidateCobaltInstances(): string[] {
+  const candidates: string[] = [];
+  try {
+    const custom = getCustomCobaltInstance();
+    const normalizedCustom = normalizeInstanceUrl(custom);
+    if (normalizedCustom) {
+      candidates.push(normalizedCustom);
+    }
+  } catch {
+    // ignore
+  }
+
+  for (const inst of DEFAULT_COBALT_INSTANCES) {
+    const normalized = normalizeInstanceUrl(inst);
+    if (normalized && !candidates.includes(normalized)) {
+      candidates.push(normalized);
+    }
+  }
+
+  return candidates;
 }
 
 /**
@@ -213,17 +244,7 @@ export const cobaltExtractor: Extractor = {
     }
 
     const isYouTube = /(?:youtube\.com|youtu\.be)/i.test(url);
-    const activeInstance = getCustomCobaltInstance()?.trim().replace(/\/$/, '');
-    const candidateInstances: string[] = [];
-    if (activeInstance) {
-      candidateInstances.push(activeInstance);
-    }
-    for (const inst of DEFAULT_COBALT_INSTANCES) {
-      const normalized = inst.trim().replace(/\/$/, '');
-      if (!candidateInstances.includes(normalized)) {
-        candidateInstances.push(normalized);
-      }
-    }
+    const candidateInstances = getCandidateCobaltInstances();
 
     let lastError = 'No se pudo conectar a ninguna instancia de Cobalt.';
     let youtubeRestricted = false;
