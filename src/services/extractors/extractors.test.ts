@@ -185,6 +185,38 @@ describe('Storage & Settings Unification', () => {
     expect(settings.customCorsProxy).toBe('https://legacy-proxy.com/?url={url}');
     expect(mockStorage[SETTINGS_KEY]).toBeDefined();
   });
+
+  it('migrates legacy api.cobalt.tools even with trailing slash or http protocol', async () => {
+    const { getSettings, SETTINGS_KEY } = await import('../storage');
+    mockStorage['hydra_cobalt_instance'] = 'https://api.cobalt.tools/';
+    delete mockStorage[SETTINGS_KEY];
+
+    const settings = getSettings();
+    expect(settings.cobaltInstance).toBe('https://rue-cobalt.xenon.zone');
+  });
+
+  it('wrapWithProxy correctly handles query prefixes without inserting spurious slashes', async () => {
+    const { wrapWithProxy, setCustomCorsProxy } = await import('./cors');
+    
+    // Query param ending with =
+    setCustomCorsProxy('https://my-proxy.com/?url=');
+    expect(wrapWithProxy('https://example.com/video.mp4')).toBe('https://my-proxy.com/?url=https%3A%2F%2Fexample.com%2Fvideo.mp4');
+
+    // Query param ending with ?
+    setCustomCorsProxy('https://my-proxy.com/?');
+    expect(wrapWithProxy('https://example.com/video.mp4')).toBe('https://my-proxy.com/?https%3A%2F%2Fexample.com%2Fvideo.mp4');
+
+    // Path proxy ending with multiple slashes
+    setCustomCorsProxy('https://cors-anywhere.herokuapp.com///');
+    expect(wrapWithProxy('https://example.com/video.mp4')).toBe('https://cors-anywhere.herokuapp.com/https%3A%2F%2Fexample.com%2Fvideo.mp4');
+
+    // Path proxy without trailing slash
+    setCustomCorsProxy('https://cors-anywhere.herokuapp.com');
+    expect(wrapWithProxy('https://example.com/video.mp4')).toBe('https://cors-anywhere.herokuapp.com/https%3A%2F%2Fexample.com%2Fvideo.mp4');
+
+    // Reset proxy
+    setCustomCorsProxy('');
+  });
 });
 
 describe('Twitter Extractor Format Accuracy', () => {

@@ -86,8 +86,8 @@ export function getSettings(): AppSettings {
       if (legacyCobalt || legacyCors) {
         const migrated: AppSettings = {
           ...DEFAULT_SETTINGS,
-          ...(legacyCobalt && legacyCobalt !== 'https://api.cobalt.tools' ? { cobaltInstance: legacyCobalt } : {}),
-          ...(legacyCors ? { customCorsProxy: legacyCors } : {})
+          ...(legacyCobalt && !legacyCobalt.includes('api.cobalt.tools') ? { cobaltInstance: legacyCobalt.trim().replace(/\/+$/, '') } : {}),
+          ...(legacyCors ? { customCorsProxy: legacyCors.trim() } : {})
         };
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(migrated));
         return migrated;
@@ -96,7 +96,7 @@ export function getSettings(): AppSettings {
     }
     const parsed = JSON.parse(raw);
     // Auto-migrate away from deprecated api.cobalt.tools
-    if (!parsed.cobaltInstance || parsed.cobaltInstance === 'https://api.cobalt.tools') {
+    if (!parsed.cobaltInstance || parsed.cobaltInstance.includes('api.cobalt.tools')) {
       parsed.cobaltInstance = DEFAULT_SETTINGS.cobaltInstance;
     }
     return { ...DEFAULT_SETTINGS, ...parsed };

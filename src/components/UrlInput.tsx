@@ -16,7 +16,7 @@ export function UrlInput({ url, onChange, onSubmit, isLoading, onClear }: UrlInp
 
   const handlePaste = async () => {
     try {
-      const text = await navigator.clipboard.readText();
+      const text = await navigator?.clipboard?.readText?.();
       if (text) {
         onChange(text.trim());
         inputRef.current?.focus();
@@ -135,7 +135,7 @@ export function UrlInput({ url, onChange, onSubmit, isLoading, onClear }: UrlInp
               </>
             ) : (
               <>
-                <span>Descargar</span>
+                <span className="hidden sm:inline">Descargar</span>
                 <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
               </>
             )}

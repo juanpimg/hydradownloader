@@ -16,12 +16,13 @@ import {
   AppSettings,
   HistoryItem
 } from './services/storage';
-import { AlertCircle, ShieldCheck, Zap, Sparkles, Youtube, Twitter, Disc, Link2 } from 'lucide-react';
+import { AlertCircle, Download, ShieldCheck, Zap, Sparkles, Youtube, Twitter, Disc, Link2 } from 'lucide-react';
 
 export function App() {
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const [media, setMedia] = useState<MediaMetadata | null>(null);
 
   // Settings & Theme
@@ -72,6 +73,7 @@ export function App() {
 
     setIsLoading(true);
     setError(null);
+    setDownloadNotice(null);
     setMedia(null);
 
     try {
@@ -90,6 +92,8 @@ export function App() {
 
   const handleDownload = async (stream: StreamOption) => {
     if (!media) return;
+    setError(null);
+    setDownloadNotice(null);
 
     try {
       await downloadStream(stream, media.title, (state) => {
@@ -108,7 +112,10 @@ export function App() {
       });
       setHistory(getHistory());
     } catch (err: any) {
-      const isCorsOrNetwork = /failed to fetch|network\s*error|cors|bloqueo cors/i.test(err?.message || '');
+      const isCorsOrNetwork =
+        err instanceof TypeError ||
+        /failed to fetch|network\s*error|cors|load failed|cross-origin|bloqueo cors/i.test(err?.message || '');
+
       if (isCorsOrNetwork) {
         addToHistory({
           title: media.title,
@@ -120,6 +127,8 @@ export function App() {
           thumbnailUrl: media.thumbnailUrl
         });
         setHistory(getHistory());
+        setDownloadNotice('Descarga iniciada directamente en tu navegador debido a restricciones de seguridad CORS del servidor de origen.');
+        return;
       }
       setError(`Error durante la descarga: ${err.message}`);
     }
@@ -128,6 +137,7 @@ export function App() {
   const handleRedownload = async (item: HistoryItem) => {
     setHistoryOpen(false);
     setError(null);
+    setDownloadNotice(null);
     const isAudio = item.format === 'mp3' || item.format === 'm4a' || item.format === 'wav' || item.format === 'ogg';
     const streamOption: StreamOption = {
       id: item.id,
@@ -142,6 +152,14 @@ export function App() {
         setProgressState(state);
       });
     } catch (err: any) {
+      const isCorsOrNetwork =
+        err instanceof TypeError ||
+        /failed to fetch|network\s*error|cors|load failed|cross-origin|bloqueo cors/i.test(err?.message || '');
+
+      if (isCorsOrNetwork) {
+        setDownloadNotice('Descarga iniciada directamente en tu navegador debido a restricciones de seguridad CORS del servidor de origen.');
+        return;
+      }
       setError(`Error al descargar desde el historial: ${err.message}. Es posible que el enlace temporal haya caducado.`);
     }
   };
@@ -205,15 +223,27 @@ export function App() {
             setUrl('');
             setMedia(null);
             setError(null);
+            setDownloadNotice(null);
           }}
         />
+
+        {/* Fallback Notice Pill */}
+        {downloadNotice && (
+          <div className="w-full max-w-2xl mt-5 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs sm:text-sm flex items-start gap-3 animate-in fade-in zoom-in-95">
+            <Download className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold">Descarga alternativa iniciada</p>
+              <p className="mt-0.5 opacity-90">{downloadNotice}</p>
+            </div>
+          </div>
+        )}
 
         {/* Error Alert Pill */}
         {error && (
           <div className="w-full max-w-2xl mt-5 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs sm:text-sm flex items-start gap-3 animate-in fade-in zoom-in-95">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold">No se pudo procesar el enlace</p>
+              <p className="font-semibold">Aviso</p>
               <p className="mt-0.5 opacity-90">{error}</p>
             </div>
           </div>

@@ -47,14 +47,21 @@ export const twitterExtractor: Extractor = {
 
         validVariants.forEach((v: any, idx: number) => {
           const isAudioOnly = v.content_type?.startsWith('audio/') || /\.(m4a|mp3|aac|ogg)(\?|$)/i.test(v.url);
+          const isWebm = /\.webm(\?|$)/i.test(v.url) || v.content_type?.includes('webm');
+          let detectedFormat: StreamOption['format'] = isAudioOnly ? 'm4a' : (isWebm ? 'webm' : 'mp4');
+          if (isAudioOnly) {
+            if (/\.mp3(\?|$)/i.test(v.url) || v.content_type?.includes('mpeg')) detectedFormat = 'mp3';
+            else if (/\.aac(\?|$)/i.test(v.url) || v.content_type?.includes('aac')) detectedFormat = 'aac';
+            else if (/\.ogg(\?|$)/i.test(v.url) || v.content_type?.includes('ogg')) detectedFormat = 'ogg';
+          }
           const heightMatch = v.url.match(/\/(\d+)x(\d+)\//);
           const resLabel = heightMatch ? `${heightMatch[2]}p` : (v.bitrate ? `${Math.round(v.bitrate / 1000)}kbps` : `Opción ${idx + 1}`);
 
           streams.push({
             id: `tw-${isAudioOnly ? 'audio' : 'video'}-${statusId}-${idx}`,
-            label: isAudioOnly ? `Audio (${resLabel})` : `${resLabel} (MP4)`,
+            label: isAudioOnly ? `Audio (${resLabel})` : `${resLabel} (${detectedFormat.toUpperCase()})`,
             quality: resLabel,
-            format: isAudioOnly ? 'm4a' : 'mp4',
+            format: detectedFormat,
             type: isAudioOnly ? 'audio' : 'video',
             url: v.url,
             hasAudio: primaryVideo.type !== 'gif'

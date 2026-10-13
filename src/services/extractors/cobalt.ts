@@ -14,7 +14,7 @@ export function getCustomCobaltInstance(): string {
       custom &&
       !custom.includes('qwkuns.me') &&
       !custom.includes('eversiege.network') &&
-      custom !== 'https://api.cobalt.tools'
+      !custom.includes('api.cobalt.tools')
     ) {
       return custom;
     }

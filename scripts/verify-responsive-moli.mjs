@@ -1,7 +1,48 @@
 // Script to verify responsive layout metrics and overflow via Moli CDP
+import WebSocket from 'ws';
+import { spawn } from 'node:child_process';
+import http from 'node:http';
+
 const wsUrl = 'ws://127.0.0.1:9222/devtools/page/moli-default';
 
+function checkHttp(url) {
+  return new Promise((resolve) => {
+    http.get(url, (res) => {
+      resolve(res.statusCode >= 200 && res.statusCode < 400);
+    }).on('error', () => {
+      resolve(false);
+    });
+  });
+}
+
+async function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+let spawnedMoli = null;
+
+async function ensureMoliServer() {
+  const isUp = await checkHttp('http://127.0.0.1:9222/json/version');
+  if (isUp) {
+    console.log('Moli CDP server is already running on port 9222.');
+    return;
+  }
+
+  console.log('Starting moli serve --layout on port 9222...');
+  spawnedMoli = spawn('moli', ['serve', '--layout'], { stdio: 'ignore' });
+  for (let i = 0; i < 30; i++) {
+    await sleep(200);
+    if (await checkHttp('http://127.0.0.1:9222/json/version')) {
+      console.log('Moli CDP server is now ready.');
+      return;
+    }
+  }
+  throw new Error('Timed out waiting for Moli CDP server to start on port 9222.');
+}
+
 async function run() {
+  await ensureMoliServer();
+
   const ws = new WebSocket(wsUrl);
 
   let idCounter = 1;
@@ -15,26 +56,34 @@ async function run() {
     });
   }
 
-  ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
-    if (msg.id && pending.has(msg.id)) {
-      const { resolve, reject } = pending.get(msg.id);
-      pending.delete(msg.id);
-      if (msg.error) reject(new Error(msg.error.message));
-      else resolve(msg.result);
+  ws.on('message', (data) => {
+    try {
+      const msg = JSON.parse(data.toString());
+      if (msg.id && pending.has(msg.id)) {
+        const { resolve, reject } = pending.get(msg.id);
+        pending.delete(msg.id);
+        if (msg.error) reject(new Error(msg.error.message));
+        else resolve(msg.result);
+      }
+    } catch (e) {
+      // ignore parse error
     }
-  };
+  });
 
-  await new Promise((res) => (ws.onopen = res));
+  await new Promise((resolve, reject) => {
+    ws.once('open', resolve);
+    ws.once('error', reject);
+  });
 
   // Enable Page & Runtime
   await send('Page.enable');
   await send('Runtime.enable');
 
   // Navigate to local dev app
-  console.log('Navigating to http://localhost:5177...');
-  await send('Page.navigate', { url: 'http://localhost:5177' });
-  await new Promise((r) => setTimeout(r, 2000));
+  const appPort = (await checkHttp('http://localhost:5177')) ? 5177 : 5173;
+  console.log(`Navigating to http://localhost:${appPort}...`);
+  await send('Page.navigate', { url: `http://localhost:${appPort}` });
+  await sleep(2000);
 
   const viewports = [
     { name: 'Narrow Mobile (360px)', width: 360, height: 800 },
@@ -57,7 +106,7 @@ async function run() {
       mobile: false
     });
 
-    await new Promise((r) => setTimeout(r, 600));
+    await sleep(600);
 
     // Check scrollWidth and innerWidth
     const evalRes = await send('Runtime.evaluate', {
@@ -120,7 +169,7 @@ async function run() {
     `
   });
 
-  await new Promise((r) => setTimeout(r, 500));
+  await sleep(500);
 
   const badgeRes = await send('Runtime.evaluate', {
     expression: `
@@ -137,7 +186,34 @@ async function run() {
   });
   console.log('Badge check on mobile:', badgeRes.result.value);
 
+  // Test desktop viewport (1024px)
+  console.log('\n--- Testing Desktop Viewport (1024x768) ---');
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 1024,
+    height: 768,
+    deviceScaleFactor: 1,
+    mobile: false
+  });
+  await sleep(400);
+
+  const desktopRes = await send('Runtime.evaluate', {
+    expression: `
+      (() => {
+        const headerVersion = document.querySelector('header span.hidden.sm\\\\:inline-block');
+        return {
+          hasHeaderVersionBadge: Boolean(headerVersion)
+        };
+      })()
+    `,
+    returnByValue: true
+  });
+  console.log('Desktop checks:', desktopRes.result.value);
+
   ws.close();
+
+  if (spawnedMoli) {
+    spawnedMoli.kill('SIGTERM');
+  }
 
   if (!allPassed) {
     console.error('\nOne or more responsive checks failed!');
@@ -150,5 +226,8 @@ async function run() {
 
 run().catch((err) => {
   console.error('Verification error:', err);
+  if (spawnedMoli) {
+    spawnedMoli.kill('SIGTERM');
+  }
   process.exit(1);
 });

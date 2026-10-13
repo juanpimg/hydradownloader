@@ -159,7 +159,7 @@ export function SettingsSheet({
                 </label>
                 <select
                   id={corsProxySelectId}
-                  value={localSettings.customCorsProxy ? 'custom' : 'corsproxy'}
+                  value={localSettings.customCorsProxy ? 'custom' : 'codetabs'}
                   onChange={(e) => {
                     if (e.target.value !== 'custom') {
                       handleChange('customCorsProxy', '');

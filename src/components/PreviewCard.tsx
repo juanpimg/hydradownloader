@@ -37,8 +37,10 @@ export function PreviewCard({ media, preferredMode, onDownload, isDownloading }:
       setMode('audio');
     } else if (audioStreams.length === 0 && videoStreams.length > 0) {
       setMode('video');
+    } else {
+      setMode(preferredMode);
     }
-  }, [isAudioOnly, audioStreams.length, videoStreams.length]);
+  }, [media.id, isAudioOnly, audioStreams.length, videoStreams.length, preferredMode]);
 
   const effectiveMode = isAudioOnly ? 'audio' : mode;
 

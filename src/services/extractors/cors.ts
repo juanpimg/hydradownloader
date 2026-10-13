@@ -10,7 +10,7 @@ export const DEFAULT_CORS_PROXIES = [
 export function getCustomCorsProxy(): string {
   try {
     const settings = getSettings();
-    return settings.customCorsProxy || '';
+    return (settings.customCorsProxy || '').trim();
   } catch {
     return '';
   }
@@ -30,7 +30,16 @@ export function wrapWithProxy(targetUrl: string, proxyId = 'codetabs'): string {
     if (custom.includes('{url}')) {
       return custom.replace('{url}', encodeURIComponent(targetUrl));
     }
-    return `${custom.replace(/\/$/, '')}/${encodeURIComponent(targetUrl)}`;
+    // Query parameter proxies ending with =, ?, or & should not have a slash inserted
+    if (custom.endsWith('=') || custom.endsWith('?') || custom.endsWith('&')) {
+      return `${custom}${encodeURIComponent(targetUrl)}`;
+    }
+    // Query parameter proxies containing ? but not ending with = (e.g. https://proxy.com/?target)
+    if (custom.includes('?') && !custom.includes('=')) {
+      return `${custom}=${encodeURIComponent(targetUrl)}`;
+    }
+    // Path-based proxies: strip trailing slashes and append single slash
+    return `${custom.replace(/\/+$/, '')}/${encodeURIComponent(targetUrl)}`;
   }
 
   const selected = DEFAULT_CORS_PROXIES.find((p) => p.id === proxyId) || DEFAULT_CORS_PROXIES[1];
@@ -70,11 +79,7 @@ export async function fetchWithCorsFallback(
 
     try {
       let finalUrl = targetUrl;
-      if (strategy === 'custom') {
-        finalUrl = custom.includes('{url}')
-          ? custom.replace('{url}', encodeURIComponent(targetUrl))
-          : `${custom.replace(/\/$/, '')}/${encodeURIComponent(targetUrl)}`;
-      } else if (strategy !== 'direct') {
+      if (strategy !== 'direct') {
         finalUrl = wrapWithProxy(targetUrl, strategy);
       }
 
