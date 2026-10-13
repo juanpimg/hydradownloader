@@ -55,6 +55,9 @@ npm run dev
 # Ejecutar tests unitarios
 npm run test:unit
 
+# Verificación en navegador real (Moli, modo solo-local)
+npm run test:moli-download
+
 # Compilar para producción (genera dist/)
 npm run build
 ```
@@ -99,7 +102,7 @@ Sin backend propio y sin APIs de terceros: cero llamadas externas. Solo `fetch` 
 
 ## ⚖️ Aviso legal
 
-- **Uso legítimo:** descarga únicamente contenido del que poseas los derechos, que sea de dominio público o con licencia que lo permita, o cuando la legislación de tu país lo autorice (p. ej. copia privada). Respeta los Términos de Servicio de cada plataforma (YouTube, TikTok, X/Twitter, Reddit) y la normativa de propiedad intelectual y derechos de autor aplicable en tu jurisdicción.
+- **Uso legítimo:** descarga únicamente contenido del que poseas los derechos, que sea de dominio público o con licencia que lo permita, o cuando la legislación de tu país lo autorice (p. ej. copia privada). Respeta los Términos de Servicio del servidor origen de cada archivo y la normativa de propiedad intelectual aplicable en tu jurisdicción.
 - **Sin elusión de protecciones:** no utilices esta herramienta para eludir medidas tecnológicas de protección (DRM) donde la ley lo prohíba.
-- **Servicios de terceros:** los extractores usan APIs e instancias públicas ajenas al autor (Cobalt, Invidious/Piped, TikWM, FxTwitter, proxies CORS), que pueden cambiar, dejar de funcionar o registrar tráfico. Úsalas bajo tu criterio.
+- **Sin servicios de terceros:** no hay APIs, instancias ni proxies ajenos. La app solo conecta directamente con el servidor del archivo que tú indicas (o con ningún servidor, en el caso de archivos locales). Si ese servidor bloquea CORS o deja de servir el archivo, la descarga fallará sin alternativa externa.
 - **Sin garantías:** software "tal cual" (licencia MIT). El autor no responde de daños directos o indirectos derivados del uso o mal uso de esta herramienta, ni de la disponibilidad o legalidad del contenido descargado. La responsabilidad del uso es exclusivamente tuya.
