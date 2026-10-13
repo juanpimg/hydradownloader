@@ -16,7 +16,7 @@ import {
   AppSettings,
   HistoryItem
 } from './services/storage';
-import { AlertCircle, Download, ShieldCheck, Zap, Sparkles, FileVideo, HardDrive, Music } from 'lucide-react';
+import { AlertCircle, Download, ShieldCheck, Zap, Sparkles, FileVideo, HardDrive, Music, FlaskConical } from 'lucide-react';
 
 export function App() {
   const [url, setUrl] = useState('');
@@ -248,6 +248,25 @@ export function App() {
             className="hidden"
             onChange={(e) => handleLocalFile(e.target.files?.[0])}
           />
+        </div>
+
+        {/* Open research challenge: help wanted */}
+        <div className="w-full max-w-2xl mt-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs sm:text-sm flex items-start gap-3">
+          <FlaskConical className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold">Aún no soportamos YouTube ni otras plataformas — necesitamos tu ayuda</p>
+            <p className="mt-0.5 opacity-90">
+              El navegador bloquea la lectura de esos vídeos y seguimos buscando una forma 100% local de resolverlo.
+            </p>
+            <a
+              href="https://github.com/juanpimg/hydradownloader/blob/main/docs/LOCAL-ONLY-RESEARCH.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1.5 inline-block font-semibold underline underline-offset-2 hover:opacity-80"
+            >
+              Ver la investigación y cómo ayudar
+            </a>
+          </div>
         </div>
 
         {/* Fallback Notice Pill */}

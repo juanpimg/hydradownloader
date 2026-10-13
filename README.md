@@ -17,6 +17,25 @@ Lo que nos diferencia: **cero llamadas a APIs de terceros**. Todo ocurre en tu n
 
 ---
 
+## 🔬 Estado del proyecto: necesitamos ayuda
+
+**Lo que funciona hoy:** enlaces directos (`.mp4`, `.webm`, `.mp3`…) y
+archivos locales. Todo 100% en tu navegador, verificado con tests (36/36) y
+navegador real Moli.
+
+**Lo que NO hemos conseguido todavía:** descargar de YouTube, TikTok, X ni
+otras plataformas sin servidor, proxy ni extensión. El navegador bloquea la
+lectura cross-origin (sin `Access-Control-Allow-Origin` no hay bytes) y lo
+hemos probado con URLs reales de `googlevideo`: 0 bytes legibles en los 3
+modos de `fetch`.
+
+**Seguimos intentándolo y necesitamos ayuda:** si se te ocurre una vía en
+página pura (o sabes refutar nuestra tabla de decisión), abre un issue o PR
+con una PoC reproducible. Todo el análisis está en
+[`docs/LOCAL-ONLY-RESEARCH.md`](./docs/LOCAL-ONLY-RESEARCH.md).
+
+---
+
 ## ⚡ Características Principales
 
 - **100% Local**: Sin backend propio y sin APIs de terceros. Sin FxTwitter, TikWM, Cobalt, Invidious, Piped ni proxies CORS. Solo `fetch` directo al archivo que tú indicas y `blob:` URLs de tus propios archivos.
