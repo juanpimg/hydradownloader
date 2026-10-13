@@ -213,6 +213,8 @@ export async function probeTunnelUrl(url: string, signal?: AbortSignal, timeoutM
           } else if (typeof (getRes.body as any).cancel === 'function') {
             getRes.body.cancel().catch(() => {});
           }
+        } else if (getClNum === null && getEclNum === null) {
+          return false;
         }
       } catch {
         return false;
@@ -375,35 +377,49 @@ export const cobaltExtractor: Extractor = {
 
           // Concurrently fetch audio-only stream option from the same instance
           try {
-            const audioResponse = await fetch(endpoint, {
-              method: 'POST',
-              headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                url,
-                downloadMode: 'audio',
-                audioFormat: 'mp3',
-                filenameStyle: 'basic'
-              }),
-              signal
-            });
-            if (audioResponse.ok) {
-              const audioData = await audioResponse.json();
-              if ((audioData.status === 'tunnel' || audioData.status === 'redirect') && audioData.url) {
-                const isAudioValid = await probeTunnelUrl(audioData.url, signal);
-                if (isAudioValid) {
-                  streams.push({
-                    id: `cobalt-audio-${Date.now()}`,
-                    label: 'Solo Audio (MP3)',
-                    quality: 'audio',
-                    format: 'mp3',
-                    type: 'audio',
-                    url: audioData.url,
-                    hasAudio: true
-                  });
+            const audioCtrl = new AbortController();
+            const audioTimeout = setTimeout(() => audioCtrl.abort(), 6000);
+            const audioAbortHandler = () => audioCtrl.abort();
+            if (signal) {
+              signal.addEventListener('abort', audioAbortHandler, { once: true });
+            }
+
+            try {
+              const audioResponse = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  url,
+                  downloadMode: 'audio',
+                  audioFormat: 'mp3',
+                  filenameStyle: 'basic'
+                }),
+                signal: audioCtrl.signal
+              });
+              if (audioResponse.ok) {
+                const audioData = await audioResponse.json();
+                if ((audioData.status === 'tunnel' || audioData.status === 'redirect') && audioData.url) {
+                  const isAudioValid = await probeTunnelUrl(audioData.url, signal, 5000);
+                  if (isAudioValid) {
+                    streams.push({
+                      id: `cobalt-audio-${Date.now()}`,
+                      label: 'Solo Audio (MP3)',
+                      quality: 'audio',
+                      format: 'mp3',
+                      type: 'audio',
+                      url: audioData.url,
+                      hasAudio: true
+                    });
+                  }
                 }
+              }
+            } finally {
+              clearTimeout(audioTimeout);
+              if (signal) {
+                signal.removeEventListener('abort', audioAbortHandler);
               }
             }
           } catch {

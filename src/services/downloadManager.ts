@@ -69,7 +69,12 @@ export async function downloadStream(
     speed: 'Iniciando descarga...'
   });
 
-  const internalController = new AbortController();
+
+  const CONNECT_TIMEOUT_MS = 20000;
+  const STALL_TIMEOUT_MS = 25000;
+  const MAX_RESUME_ATTEMPTS = 3;
+
+  let internalController = new AbortController();
   let isInternalStall = false;
   let stallReason: string | null = null;
   let browserSaveAttempted = false;
@@ -91,8 +96,6 @@ export async function downloadStream(
   }
 
   let stallTimer: ReturnType<typeof setTimeout> | null = null;
-  const CONNECT_TIMEOUT_MS = 20000;
-  const STALL_TIMEOUT_MS = 25000;
 
   const resetStallWatchdog = (
     timeoutMs = STALL_TIMEOUT_MS,
@@ -122,103 +125,216 @@ export async function downloadStream(
 
   try {
     const startTime = Date.now();
-    let response: Response;
-
-    resetStallWatchdog(CONNECT_TIMEOUT_MS, 'Tiempo de espera agotado al conectar con el servidor de descarga.');
-
-    try {
-      response = await fetch(stream.url, { signal: internalController.signal });
-    } catch (fetchErr: any) {
-      clearStallWatchdog();
-      if (signal?.aborted) throw fetchErr;
-
-      if (isInternalStall) {
-        throw new Error(`Error de red: ${stallReason || 'Tiempo de espera agotado.'}`);
-      }
-
-      // If direct fetch() fails due to CORS or network blockage, provide graceful fallback to direct browser save
-      const isCorsOrNetwork =
-        fetchErr instanceof TypeError ||
-        /failed to fetch|network\s*error|cors|load failed|cross-origin/i.test(fetchErr?.message || '');
-
-      if (isCorsOrNetwork && stream.url) {
-        try {
-          triggerBrowserSave(stream.url, filename);
-          browserSaveAttempted = true;
-          fetchErr.isBrowserSaveInitiated = true;
-        } catch {
-          // ignore
-        }
-      }
-      throw fetchErr;
-    } finally {
-      clearStallWatchdog();
-    }
-
-    if (signal?.aborted || internalController.signal.aborted) {
-      notify({
-        isDownloading: false,
-        progress: 0,
-        bytesReceived: 0,
-        totalBytes: 0,
-        speed: 'Cancelado'
-      });
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    if (response.status === 204 || response.status === 205) {
-      throw new Error('El servidor devolvió una respuesta sin contenido (0 bytes).');
-    }
-
-    const cl = response.headers.get('content-length');
-    const ecl = response.headers.get('estimated-content-length');
-    const cr = response.headers.get('content-range');
-
-    const clNum = cl !== null ? parseInt(cl.trim(), 10) : null;
-    const eclNum = ecl !== null ? parseInt(ecl.trim(), 10) : null;
-
-    if (clNum !== null && (isNaN(clNum) || clNum <= 0)) {
-      throw new Error('El servidor devolvió una respuesta vacía (0 bytes).');
-    }
-
-    if (eclNum !== null && (isNaN(eclNum) || eclNum <= 0)) {
-      throw new Error('El servidor devolvió una respuesta vacía (0 bytes). El enlace de descarga fue bloqueado o no contiene datos.');
-    }
-
-    if (cr && (/\/0$/.test(cr.trim()) || /\/-1$/.test(cr.trim()))) {
-      throw new Error('El servidor devolvió una respuesta vacía (0 bytes).');
-    }
-
-    const total = (clNum !== null && !isNaN(clNum) && clNum > 0)
-      ? clNum
-      : ((eclNum !== null && !isNaN(eclNum) && eclNum > 0)
-        ? eclNum
-        : (stream.fileSize || 0));
-
-    if (!response.body) {
-      throw new Error('El flujo de datos de la descarga no está disponible.');
-    }
-
-    const reader = response.body.getReader();
-    activeReader = reader;
     const chunks: BlobPart[] = [];
     let received = 0;
+    let total = stream.fileSize || 0;
+    let exactTotal = 0;
+    let resumeAttempts = 0;
 
-    resetStallWatchdog(STALL_TIMEOUT_MS, 'La conexión se interrumpió durante la transferencia (pausa de red superior a 25s).');
+    while (true) {
+      if (signal?.aborted) {
+        notify({
+          isDownloading: false,
+          progress: 0,
+          bytesReceived: 0,
+          totalBytes: 0,
+          speed: 'Cancelado'
+        });
+        return;
+      }
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      let response: Response;
+      resetStallWatchdog(
+        CONNECT_TIMEOUT_MS,
+        received === 0
+          ? 'Tiempo de espera agotado al conectar con el servidor de descarga.'
+          : 'Tiempo de espera agotado al reanudar la conexión con el servidor.'
+      );
+
+      try {
+        const headers: Record<string, string> = {};
+        if (received > 0) {
+          headers['Range'] = `bytes=${received}-`;
+        }
+
+        response = await fetch(stream.url, {
+          headers,
+          signal: internalController.signal
+        });
+      } catch (fetchErr: any) {
+        clearStallWatchdog();
+        if (signal?.aborted) throw fetchErr;
+
+        if (received === 0) {
+          if (isInternalStall) {
+            throw new Error(`Error de red: ${stallReason || 'Tiempo de espera agotado.'}`);
+          }
+
+          // If direct fetch() fails due to CORS or network blockage, provide graceful fallback to direct browser save
+          const isCorsOrNetwork =
+            fetchErr instanceof TypeError ||
+            /failed to fetch|network\s*error|cors|load failed|cross-origin/i.test(fetchErr?.message || '');
+
+          if (isCorsOrNetwork && stream.url) {
+            try {
+              triggerBrowserSave(stream.url, filename);
+              browserSaveAttempted = true;
+              fetchErr.isBrowserSaveInitiated = true;
+            } catch {
+              // ignore
+            }
+          }
+          throw fetchErr;
+        }
+
+        // Mid-stream connection dropped (cellular IP switch or TCP reset): try Range resume
+        if (resumeAttempts < MAX_RESUME_ATTEMPTS) {
+          resumeAttempts++;
+          const delay = Math.min(1000 * resumeAttempts, 3000);
+          notify({
+            isDownloading: true,
+            progress: total > 0 ? Math.min(99, Math.round((received / total) * 100)) : 0,
+            bytesReceived: received,
+            totalBytes: total,
+            speed: `Reconectando (${resumeAttempts}/${MAX_RESUME_ATTEMPTS})...`
+          });
+
+          // Reset abort controller and stall state for next attempt
+          internalController = new AbortController();
+          isInternalStall = false;
+          stallReason = null;
+
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+
+        throw new Error(
+          `Error de red: Conexión interrumpida tras ${formatBytes(received)}${total > 0 ? ` de ${formatBytes(total)}` : ''} (${resumeAttempts} intentos de reconexión).`
+        );
+      } finally {
+        clearStallWatchdog();
+      }
+
+      if (signal?.aborted) {
+        notify({
+          isDownloading: false,
+          progress: 0,
+          bytesReceived: 0,
+          totalBytes: 0,
+          speed: 'Cancelado'
+        });
+        return;
+      }
+
+      if (response.status === 416) {
+        if (total > 0 && received >= total) {
+          break;
+        }
+        throw new Error('El servidor rechazó la solicitud de reanudación (HTTP 416).');
+      }
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      if (response.status === 204 || response.status === 205) {
+        throw new Error('El servidor devolvió una respuesta sin contenido (0 bytes).');
+      }
+
+      const cl = response.headers.get('content-length');
+      const ecl = response.headers.get('estimated-content-length');
+      const cr = response.headers.get('content-range');
+
+      const clNum = cl !== null ? parseInt(cl.trim(), 10) : null;
+      const eclNum = ecl !== null ? parseInt(ecl.trim(), 10) : null;
+
+      if (received === 0) {
+        if (clNum !== null && (isNaN(clNum) || clNum <= 0)) {
+          throw new Error('El servidor devolvió una respuesta vacía (0 bytes).');
+        }
+
+        if (eclNum !== null && (isNaN(eclNum) || eclNum <= 0)) {
+          throw new Error('El servidor devolvió una respuesta vacía (0 bytes). El enlace de descarga fue bloqueado o no contiene datos.');
+        }
+
+        if (cr && (/\/0$/.test(cr.trim()) || /\/-1$/.test(cr.trim()))) {
+          throw new Error('El servidor devolvió una respuesta vacía (0 bytes).');
+        }
+
+        if (cr) {
+          const match = cr.trim().match(/\/([0-9]+)$/);
+          if (match) {
+            const parsedCrTotal = parseInt(match[1], 10);
+            if (parsedCrTotal <= 0) {
+              throw new Error('El servidor devolvió una respuesta vacía (0 bytes).');
+            }
+            exactTotal = parsedCrTotal;
+          }
+        }
+
+        if (clNum !== null && !isNaN(clNum) && clNum > 0) {
+          exactTotal = clNum;
+        }
+
+        if (exactTotal > 0) {
+          total = exactTotal;
+        } else if (eclNum !== null && !isNaN(eclNum) && eclNum > 0) {
+          total = eclNum;
+        } else if (stream.fileSize && stream.fileSize > 0) {
+          total = stream.fileSize;
+        }
+      } else {
+        // On resume, server returned 200 (ignored Range, restarted from byte 0)
+        if (response.status === 200) {
+          chunks.length = 0;
+          received = 0;
+          if (clNum !== null && !isNaN(clNum) && clNum > 0) {
+            exactTotal = clNum;
+            total = clNum;
+          }
+        } else if (response.status === 206 && cr) {
+          const match = cr.trim().match(/\/([0-9]+)$/);
+          if (match) {
+            const parsedCrTotal = parseInt(match[1], 10);
+            if (parsedCrTotal > 0) {
+              exactTotal = parsedCrTotal;
+              total = parsedCrTotal;
+            }
+          }
+        }
+      }
+
+      if (!response.body) {
+        throw new Error('El flujo de datos de la descarga no está disponible.');
+      }
+
+      const reader = response.body.getReader();
+      activeReader = reader;
+      let streamInterrupted = false;
+
+      resetStallWatchdog(
+        STALL_TIMEOUT_MS,
+        'La conexión se interrumpió durante la transferencia (pausa de red superior a 25s).'
+      );
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            // Premature EOF check: only if we have an authoritative exact length from the server
+            if (received > 0 && exactTotal > 0 && received < exactTotal) {
+              streamInterrupted = true;
+            }
+            break;
+          }
 
         if (value) {
           chunks.push(value);
           received += value.length;
-          resetStallWatchdog(STALL_TIMEOUT_MS, 'La conexión se interrumpió durante la transferencia (pausa de red superior a 25s).');
+          resetStallWatchdog(
+            STALL_TIMEOUT_MS,
+            'La conexión se interrumpió durante la transferencia (pausa de red superior a 25s).'
+          );
         }
 
         const elapsedSec = (Date.now() - startTime) / 1000;
@@ -233,6 +349,11 @@ export async function downloadStream(
           speed: `${speedMBps} MB/s`
         });
       }
+    } catch {
+      if (signal?.aborted) return;
+      if (received > 0) {
+        streamInterrupted = true;
+      }
     } finally {
       activeReader = null;
       clearStallWatchdog();
@@ -240,9 +361,6 @@ export async function downloadStream(
         reader.cancel().catch(() => {});
       }
       reader.releaseLock();
-      if (signal) {
-        signal.removeEventListener('abort', onUserAbort);
-      }
     }
 
     if (signal?.aborted) {
@@ -256,17 +374,34 @@ export async function downloadStream(
       return;
     }
 
-    if (isInternalStall) {
-      const stallErr = new Error(`Error de red: ${stallReason || 'Conexión interrumpida por inactividad de red.'}`);
-      notify({
-        isDownloading: false,
-        progress: 0,
-        bytesReceived: 0,
-        totalBytes: 0,
-        speed: 'Error',
-        error: stallErr.message
-      });
-      throw stallErr;
+    if (streamInterrupted && received > 0) {
+        if (resumeAttempts < MAX_RESUME_ATTEMPTS) {
+          resumeAttempts++;
+          const delay = Math.min(1000 * resumeAttempts, 3000);
+          notify({
+            isDownloading: true,
+            progress: total > 0 ? Math.min(99, Math.round((received / total) * 100)) : 0,
+            bytesReceived: received,
+            totalBytes: total,
+            speed: `Reconectando (${resumeAttempts}/${MAX_RESUME_ATTEMPTS})...`
+          });
+
+          // Reset abort controller and stall state for next attempt
+          internalController = new AbortController();
+          isInternalStall = false;
+          stallReason = null;
+
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+
+        throw new Error(
+          `Error de red: Conexión interrumpida tras ${formatBytes(received)}${total > 0 ? ` de ${formatBytes(total)}` : ''} tras ${resumeAttempts} intentos de reconexión.`
+        );
+      }
+
+      // Stream successfully finished!
+      break;
     }
 
     if (received === 0) {
@@ -315,7 +450,11 @@ export async function downloadStream(
     triggerBrowserSave(objectUrl, filename);
 
     setTimeout(() => {
-      URL.revokeObjectURL(objectUrl);
+      try {
+        URL.revokeObjectURL(objectUrl);
+      } catch {
+        // ignore
+      }
     }, 30000);
 
     notify({
@@ -363,11 +502,16 @@ export async function downloadStream(
     });
 
     throw err;
+  } finally {
+    clearStallWatchdog();
+    if (signal) {
+      signal.removeEventListener('abort', onUserAbort);
+    }
   }
 }
 
 export function triggerBrowserSave(url: string, filename: string): void {
-  if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined' || !document.body) return;
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
@@ -377,7 +521,7 @@ export function triggerBrowserSave(url: string, filename: string): void {
   a.click();
   setTimeout(() => {
     if (typeof document !== 'undefined' && a.parentNode) {
-      document.body.removeChild(a);
+      a.parentNode.removeChild(a);
     }
   }, 100);
 }

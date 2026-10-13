@@ -438,6 +438,169 @@ describe('Download Manager - 0-byte and error prevention', () => {
     const createdBlob3 = (URL.createObjectURL as any).mock.calls[2][0];
     expect(createdBlob3.type).toBe('video/webm');
   });
+
+  describe('Range Resume capabilities on cellular/network reset (Open Issue 5)', () => {
+    it('resumes mid-stream download using HTTP Range header when connection drops mid-transfer', async () => {
+      const part1Data = new Uint8Array([1, 2, 3, 4]);
+      const part2Data = new Uint8Array([5, 6, 7, 8]);
+
+      let callCount = 0;
+      globalThis.fetch = vi.fn().mockImplementation(async (_url, init) => {
+        callCount++;
+        if (callCount === 1) {
+          // First attempt: delivers 4 bytes then drops connection on subsequent read (socket error)
+          let pulled = false;
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers({ 'content-length': '8' }),
+            body: new ReadableStream({
+              pull(controller) {
+                if (!pulled) {
+                  pulled = true;
+                  controller.enqueue(part1Data);
+                } else {
+                  controller.error(new TypeError('network connection reset'));
+                }
+              }
+            })
+          } as unknown as Response;
+        }
+
+        if (callCount === 2) {
+          // Second attempt: Range request from byte 4
+          expect(init?.headers?.['Range']).toBe('bytes=4-');
+          return {
+            ok: true,
+            status: 206,
+            headers: new Headers({
+              'content-range': 'bytes 4-7/8',
+              'content-length': '4'
+            }),
+            body: new ReadableStream({
+              start(controller) {
+                controller.enqueue(part2Data);
+                controller.close();
+              }
+            })
+          } as unknown as Response;
+        }
+
+        throw new Error('Unexpected extra call');
+      });
+
+      const onProgress = vi.fn();
+      await downloadStream(sampleStream, 'Resumed_Video', onProgress);
+
+      expect(callCount).toBe(2);
+      expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+
+      // Verify progress completed with all 8 bytes
+      expect(onProgress).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isDownloading: false,
+          progress: 100,
+          bytesReceived: 8,
+          totalBytes: 8,
+          speed: 'Completado'
+        })
+      );
+    });
+
+    it('recovers via Range resume when stream prematurely terminates before total bytes', async () => {
+      const chunk1 = new Uint8Array([10, 20, 30, 40, 50]);
+      const chunk2 = new Uint8Array([60, 70, 80, 90, 100]);
+
+      let callCount = 0;
+      globalThis.fetch = vi.fn().mockImplementation(async (_url, init) => {
+        callCount++;
+        if (callCount === 1) {
+          // First response: sends 5 bytes of 10 and closes early (premature EOF)
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers({ 'content-length': '10' }),
+            body: new ReadableStream({
+              start(controller) {
+                controller.enqueue(chunk1);
+                controller.close(); // Closed early without delivering full 10 bytes
+              }
+            })
+          } as unknown as Response;
+        }
+
+        if (callCount === 2) {
+          expect(init?.headers?.['Range']).toBe('bytes=5-');
+          return {
+            ok: true,
+            status: 206,
+            headers: new Headers({
+              'content-range': 'bytes 5-9/10',
+              'content-length': '5'
+            }),
+            body: new ReadableStream({
+              start(controller) {
+                controller.enqueue(chunk2);
+                controller.close();
+              }
+            })
+          } as unknown as Response;
+        }
+
+        throw new Error('Unexpected call');
+      });
+
+      const onProgress = vi.fn();
+      await downloadStream(sampleStream, 'Premature_EOF_Video', onProgress);
+
+      expect(callCount).toBe(2);
+      expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+      expect(onProgress).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isDownloading: false,
+          progress: 100,
+          bytesReceived: 10,
+          speed: 'Completado'
+        })
+      );
+    });
+
+    it('reports clear error after exhausting Range resume attempts', async () => {
+      let callCount = 0;
+      globalThis.fetch = vi.fn().mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          let pulled = false;
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers({ 'content-length': '100' }),
+            body: new ReadableStream({
+              pull(controller) {
+                if (!pulled) {
+                  pulled = true;
+                  controller.enqueue(new Uint8Array([1, 2, 3]));
+                } else {
+                  controller.error(new TypeError('connection reset by peer'));
+                }
+              }
+            })
+          } as unknown as Response;
+        }
+        // Subsequent resume attempts fail
+        throw new TypeError('Failed to fetch');
+      });
+
+      const onProgress = vi.fn();
+      await expect(downloadStream(sampleStream, 'Exhausted_Video', onProgress)).rejects.toThrow(
+        /intentos de reconexión/i
+      );
+
+      // Verify 1 initial call + 3 resume attempts = 4 total calls
+      expect(callCount).toBe(4);
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+    }, 12000);
+  });
 });
 
 describe('Cobalt probeTunnelUrl - 0-byte and tunnel probe resilience', () => {

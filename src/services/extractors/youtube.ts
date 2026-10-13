@@ -62,11 +62,13 @@ async function fetchInvidiousVideo(
   signal?: AbortSignal
 ): Promise<any | null> {
   for (const base of instances) {
+    if (signal?.aborted) return null;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4000);
+    const abortHandler = () => controller.abort();
 
     if (signal) {
-      signal.addEventListener('abort', () => controller.abort(), { once: true });
+      signal.addEventListener('abort', abortHandler, { once: true });
     }
 
     try {
@@ -75,8 +77,6 @@ async function fetchInvidiousVideo(
         signal: controller.signal
       });
 
-      clearTimeout(timeout);
-
       if (res.ok) {
         const data = await res.json();
         if (data && data.title && (data.formatStreams?.length || data.adaptiveFormats?.length)) {
@@ -84,8 +84,12 @@ async function fetchInvidiousVideo(
         }
       }
     } catch {
-      clearTimeout(timeout);
       // continue to next instance
+    } finally {
+      clearTimeout(timeout);
+      if (signal) {
+        signal.removeEventListener('abort', abortHandler);
+      }
     }
   }
 
