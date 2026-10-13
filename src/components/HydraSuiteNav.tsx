@@ -12,6 +12,7 @@ const APPS = [
     desc: 'Editor de vídeo multitrack',
     icon: Film,
     port: 5173,
+    url: 'https://hydracut.pages.dev/',
     color: 'from-amber-500 to-orange-500'
   },
   {
@@ -19,6 +20,7 @@ const APPS = [
     desc: 'Portal y catálogo de la suite',
     icon: LayoutGrid,
     port: 5174,
+    url: 'https://hydraapps.pages.dev/',
     color: 'from-blue-500 to-cyan-500'
   },
   {
@@ -26,6 +28,7 @@ const APPS = [
     desc: 'Estación de audio digital',
     icon: Music,
     port: 5175,
+    url: 'https://hydradaw.pages.dev/',
     color: 'from-purple-500 to-indigo-500'
   },
   {
@@ -33,6 +36,7 @@ const APPS = [
     desc: 'Conversor multimedia local',
     icon: RefreshCw,
     port: 5176,
+    url: 'https://hydraconverter.pages.dev/',
     color: 'from-emerald-500 to-teal-500'
   },
   {
@@ -40,6 +44,7 @@ const APPS = [
     desc: 'Descargador universal web',
     icon: Download,
     port: 5177,
+    url: 'https://hydradownloader.pages.dev/',
     active: true,
     color: 'from-blue-600 to-indigo-600'
   }
@@ -81,7 +86,11 @@ export function HydraSuiteNav({ isOpen, onClose }: HydraSuiteNavProps) {
       <div className="space-y-1">
         {APPS.map((app) => {
           const Icon = app.icon;
-          const href = `http://localhost:${app.port}`;
+          // En local (dev) enlaza a localhost:puerto; en producción a la pages.dev
+          const href =
+            typeof window !== 'undefined' && window.location.hostname === 'localhost'
+              ? `http://localhost:${app.port}`
+              : app.url;
 
           if (app.active) {
             return (

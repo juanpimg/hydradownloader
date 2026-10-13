@@ -300,7 +300,7 @@ export function App() {
       <footer className="w-full border-t border-black/5 dark:border-white/10 py-6 px-4 text-center text-xs text-[#86868b]">
         <div className="flex items-center justify-center gap-4 mb-2">
           <a
-            href="http://localhost:5174"
+            href="https://hydraapps.pages.dev/"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-blue-500 transition-colors"
@@ -309,7 +309,7 @@ export function App() {
           </a>
           <span>•</span>
           <a
-            href="http://localhost:5173"
+            href="https://hydracut.pages.dev/"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-blue-500 transition-colors"
@@ -318,7 +318,7 @@ export function App() {
           </a>
           <span>•</span>
           <a
-            href="http://localhost:5176"
+            href="https://hydraconverter.pages.dev/"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-blue-500 transition-colors"

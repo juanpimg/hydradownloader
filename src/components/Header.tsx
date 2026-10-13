@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, LayoutGrid, History, Settings, Sun, Moon } from 'lucide-react';
+import { Download, LayoutGrid, History, Settings, Sun, Moon, Github } from 'lucide-react';
 import { HydraSuiteNav } from './HydraSuiteNav';
 
 interface HeaderProps {
@@ -72,6 +72,18 @@ export function Header({
         >
           {theme === 'dark' ? <Sun className="w-4 h-4 sm:w-5 sm:h-5" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5" />}
         </button>
+
+        {/* GitHub */}
+        <a
+          href="https://github.com/juanpimg/hydradownloader"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Ver código en GitHub — ¡contribuye!"
+          aria-label="Ver HydraDownloader en GitHub (pestaña nueva)"
+          className="p-1.5 sm:p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-all"
+        >
+          <Github className="w-4 h-4 sm:w-5 sm:h-5" />
+        </a>
 
         {/* Suite Nav Dropdown Trigger */}
         <div className="relative ml-0.5 sm:ml-1 pl-0.5 sm:pl-1 border-l border-black/5 dark:border-white/10">
