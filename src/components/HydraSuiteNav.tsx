@@ -1,15 +1,24 @@
 import { useRef, useEffect } from 'react';
 import { LayoutGrid, Film, Music, RefreshCw, Download, ExternalLink } from 'lucide-react';
+import { t, type I18nKey } from '../services/i18n';
 
 interface HydraSuiteNavProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const APPS = [
+const APPS: Array<{
+  name: string;
+  descKey: I18nKey;
+  icon: any;
+  port: number;
+  url: string;
+  color: string;
+  active?: boolean;
+}> = [
   {
     name: 'HydraCut Studio',
-    desc: 'Multitrack video editor',
+    descKey: 'nav_cut',
     icon: Film,
     port: 5173,
     url: 'https://hydracut.pages.dev/',
@@ -17,7 +26,7 @@ const APPS = [
   },
   {
     name: 'Hydra Hub',
-    desc: 'Suite portal and catalog',
+    descKey: 'nav_hub',
     icon: LayoutGrid,
     port: 5174,
     url: 'https://hydraapps.pages.dev/',
@@ -25,7 +34,7 @@ const APPS = [
   },
   {
     name: 'HydraDAW',
-    desc: 'Digital audio workstation',
+    descKey: 'nav_daw',
     icon: Music,
     port: 5175,
     url: 'https://hydradaw.pages.dev/',
@@ -33,7 +42,7 @@ const APPS = [
   },
   {
     name: 'HydraConvert',
-    desc: 'Local media converter',
+    descKey: 'nav_convert',
     icon: RefreshCw,
     port: 5176,
     url: 'https://hydraconverter.pages.dev/',
@@ -41,7 +50,7 @@ const APPS = [
   },
   {
     name: 'HydraDownloader',
-    desc: 'Universal web downloader',
+    descKey: 'nav_downloader',
     icon: Download,
     port: 5177,
     url: 'https://hydradownloader.pages.dev/',
@@ -105,10 +114,10 @@ export function HydraSuiteNav({ isOpen, onClose }: HydraSuiteNavProps) {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold truncate">{app.name}</span>
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-600 text-white px-1.5 py-0.2 rounded">
-                      Current
+                      {t('nav_current')}
                     </span>
                   </div>
-                  <p className="text-xs text-blue-600/70 dark:text-blue-400/70 truncate">{app.desc}</p>
+                  <p className="text-xs text-blue-600/70 dark:text-blue-400/70 truncate">{t(app.descKey)}</p>
                 </div>
               </div>
             );
@@ -127,7 +136,7 @@ export function HydraSuiteNav({ isOpen, onClose }: HydraSuiteNavProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <span className="text-sm font-medium truncate block">{app.name}</span>
-                <p className="text-xs text-[#86868b] truncate">{app.desc}</p>
+                <p className="text-xs text-[#86868b] truncate">{t(app.descKey)}</p>
               </div>
               <ExternalLink className="w-3.5 h-3.5 text-[#86868b] opacity-0 group-hover:opacity-100 transition-opacity" />
             </a>

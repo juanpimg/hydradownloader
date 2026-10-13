@@ -1,4 +1,5 @@
 import { Extractor, ExtractionResult, MediaMetadata, StreamOption } from './types';
+import { t } from '../i18n';
 
 const DIRECT_MEDIA_EXTENSIONS = /\.(mp4|webm|mkv|mov|mp3|m4a|wav|aac|ogg|flac|opus)(\?.*)?$/i;
 
@@ -20,7 +21,7 @@ export const directExtractor: Extractor = {
         const streams: StreamOption[] = [
           {
             id: `direct-${Date.now()}`,
-            label: 'Local File (BLOB)',
+            label: t('dx_blob_label'),
             quality: 'original',
             format: 'mp4',
             type: 'video',
@@ -32,9 +33,9 @@ export const directExtractor: Extractor = {
           id: `direct-${Date.now()}`,
           originalUrl: trimmed,
           platform: 'local',
-          title: 'local-file',
+          title: t('dx_blob_title'),
           streams,
-          extractedVia: 'Local File (no network)'
+          extractedVia: t('file_via')
         };
         return { success: true, data: metadata };
       }
@@ -66,7 +67,7 @@ export const directExtractor: Extractor = {
       const streams: StreamOption[] = [
         {
           id: `direct-${Date.now()}`,
-          label: `Direct File (${ext.toUpperCase()})`,
+          label: t('dx_direct_label', { e: ext.toUpperCase() }),
           quality: 'original',
           format: isAudio ? (ext as any) : (ext === 'webm' ? 'webm' : 'mp4'),
           type: isAudio ? 'audio' : 'video',
@@ -82,12 +83,12 @@ export const directExtractor: Extractor = {
         platform: 'direct',
         title: cleanFilename,
         streams,
-        extractedVia: 'Local Direct Link (no APIs)'
+        extractedVia: t('dx_direct_via')
       };
 
       return { success: true, data: metadata };
     } catch (err: any) {
-      return { success: false, error: `Error processing direct link: ${err.message}` };
+      return { success: false, error: `${t('ex_direct_err')}${err.message}` };
     }
   }
 };

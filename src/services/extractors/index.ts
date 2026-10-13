@@ -1,5 +1,6 @@
 import { Extractor, ExtractionResult, PlatformType } from './types';
 import { directExtractor } from './direct';
+import { t } from '../i18n';
 
 export * from './types';
 export * from './local';
@@ -20,7 +21,7 @@ export function detectPlatform(url: string): PlatformType {
 export async function extractMedia(url: string, signal?: AbortSignal): Promise<ExtractionResult> {
   const trimmed = url.trim();
   if (!trimmed) {
-    return { success: false, error: 'Please enter a valid URL.' };
+    return { success: false, error: t('ex_badurl') };
   }
 
   const matchedExtractor = extractors.find((ext) => ext.canHandle(trimmed));
@@ -28,7 +29,7 @@ export async function extractMedia(url: string, signal?: AbortSignal): Promise<E
     return {
       success: false,
       error:
-        'Local-only mode: paste a direct link to a file (.mp4, .webm, .mp3, .m4a, .wav, etc.) or load a file from your device. No external APIs, no proxies, no servers.'
+        t('ex_localonly')
     };
   }
 
@@ -37,7 +38,7 @@ export async function extractMedia(url: string, signal?: AbortSignal): Promise<E
   } catch (err: any) {
     return {
       success: false,
-      error: `Unexpected extraction error: ${err.message || 'Unknown error'}`
+      error: `${t('ex_unexpected')}${err.message || t('ex_unknown')}`
     };
   }
 }

@@ -1,4 +1,5 @@
 import { PlatformType } from './extractors/types';
+import { LocalePreference } from './i18n';
 
 export interface HistoryItem {
   id: string;
@@ -17,6 +18,7 @@ export interface AppSettings {
   defaultQuality: string;
   defaultAudioFormat: 'mp3' | 'm4a';
   theme: 'system' | 'dark' | 'light';
+  locale: LocalePreference;
 }
 
 const HISTORY_KEY = 'hydra_downloader_history';
@@ -26,7 +28,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   preferredMode: 'video',
   defaultQuality: 'best',
   defaultAudioFormat: 'mp3',
-  theme: 'system'
+  theme: 'system',
+  locale: 'system'
 };
 
 export function getHistory(): HistoryItem[] {

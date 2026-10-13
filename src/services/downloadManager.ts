@@ -1,4 +1,5 @@
 import { StreamOption } from './extractors/types';
+import { t } from './i18n';
 
 export interface DownloadProgressState {
   isDownloading: boolean;
@@ -39,15 +40,15 @@ export async function downloadStream(
   if (
     /(?:youtube\.com\/watch|youtu\.be\/|youtube\.com\/shorts)/i.test(stream.url)
   ) {
-    throw new Error('This option does not contain a directly downloadable media file.');
+    throw new Error(t('dm_nofile'));
   }
 
   if (!stream.url || typeof stream.url !== 'string') {
-    throw new Error('The download URL is not valid.');
+    throw new Error(t('dm_badurl'));
   }
 
   if (stream.fileSize !== undefined && stream.fileSize <= 0) {
-    throw new Error('The declared file size is 0 bytes.');
+    throw new Error(t('dm_zerosize'));
   }
 
   if (signal?.aborted) {
@@ -66,7 +67,7 @@ export async function downloadStream(
     progress: 0,
     bytesReceived: 0,
     totalBytes: stream.fileSize || 0,
-    speed: 'Starting download...'
+    speed: t('dm_starting')
   });
 
 
@@ -99,7 +100,7 @@ export async function downloadStream(
 
   const resetStallWatchdog = (
     timeoutMs = STALL_TIMEOUT_MS,
-    reason = 'Download stalled due to prolonged inactivity (connection interrupted).'
+    reason = t('dm_stall')
   ) => {
     if (stallTimer) clearTimeout(stallTimer);
     stallTimer = setTimeout(() => {
@@ -138,7 +139,7 @@ export async function downloadStream(
           progress: 0,
           bytesReceived: 0,
           totalBytes: 0,
-          speed: 'Cancelled'
+          speed: t('dm_cancelled')
         });
         return;
       }
@@ -147,8 +148,8 @@ export async function downloadStream(
       resetStallWatchdog(
         CONNECT_TIMEOUT_MS,
         received === 0
-          ? 'Timed out while connecting to the download server.'
-          : 'Timed out while resuming the connection to the server.'
+          ? t('dm_timeout_connect')
+          : t('dm_timeout_resume')
       );
 
       try {
@@ -167,7 +168,7 @@ export async function downloadStream(
 
         if (received === 0) {
           if (isInternalStall) {
-            throw new Error(`Network error: ${stallReason || 'Timed out.'}`);
+            throw new Error(`${t('dm_net_prefix')}${stallReason || t('dm_net_timeout')}`);
           }
 
           // If direct fetch() fails due to CORS or network blockage, provide graceful fallback to direct browser save
@@ -196,7 +197,7 @@ export async function downloadStream(
             progress: total > 0 ? Math.min(99, Math.round((received / total) * 100)) : 0,
             bytesReceived: received,
             totalBytes: total,
-            speed: `Reconnecting (${resumeAttempts}/${MAX_RESUME_ATTEMPTS})...`
+            speed: t('dm_reconnecting', { a: resumeAttempts, b: MAX_RESUME_ATTEMPTS })
           });
 
           // Reset abort controller and stall state for next attempt
@@ -209,7 +210,7 @@ export async function downloadStream(
         }
 
         throw new Error(
-          `Network error: connection interrupted after ${formatBytes(received)}${total > 0 ? ` of ${formatBytes(total)}` : ''} (${resumeAttempts} reconnection attempts).`
+          t('dm_interrupted', { r: formatBytes(received), t: total > 0 ? ` of ${formatBytes(total)}` : '', n: resumeAttempts })
         );
       } finally {
         clearStallWatchdog();
@@ -221,7 +222,7 @@ export async function downloadStream(
           progress: 0,
           bytesReceived: 0,
           totalBytes: 0,
-          speed: 'Cancelled'
+          speed: t('dm_cancelled')
         });
         return;
       }
@@ -230,15 +231,15 @@ export async function downloadStream(
         if (total > 0 && received >= total) {
           break;
         }
-        throw new Error('The server rejected the resume request (HTTP 416).');
+        throw new Error(t('dm_416'));
       }
 
       if (!response.ok) {
-        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+        throw new Error(t('dm_http', { s: response.status, t: response.statusText }));
       }
 
       if (response.status === 204 || response.status === 205) {
-        throw new Error('The server returned an empty response with no content (0 bytes).');
+        throw new Error(t('dm_nocontent'));
       }
 
       const cl = response.headers.get('content-length');
@@ -250,15 +251,15 @@ export async function downloadStream(
 
       if (received === 0) {
         if (clNum !== null && (isNaN(clNum) || clNum <= 0)) {
-          throw new Error('The server returned an empty response (0 bytes).');
+          throw new Error(t('dm_empty'));
         }
 
         if (eclNum !== null && (isNaN(eclNum) || eclNum <= 0)) {
-          throw new Error('The server returned an empty response (0 bytes). The download link was blocked or contains no data.');
+          throw new Error(t('dm_empty') + t('dm_blocked'));
         }
 
         if (cr && (/\/0$/.test(cr.trim()) || /\/-1$/.test(cr.trim()))) {
-          throw new Error('The server returned an empty response (0 bytes).');
+          throw new Error(t('dm_empty'));
         }
 
         if (cr) {
@@ -266,7 +267,7 @@ export async function downloadStream(
           if (match) {
             const parsedCrTotal = parseInt(match[1], 10);
             if (parsedCrTotal <= 0) {
-              throw new Error('The server returned an empty response (0 bytes).');
+              throw new Error(t('dm_empty'));
             }
             exactTotal = parsedCrTotal;
           }
@@ -305,7 +306,7 @@ export async function downloadStream(
       }
 
       if (!response.body) {
-        throw new Error('The download data stream is not available.');
+        throw new Error(t('dm_nostream'));
       }
 
       const reader = response.body.getReader();
@@ -314,7 +315,7 @@ export async function downloadStream(
 
       resetStallWatchdog(
         STALL_TIMEOUT_MS,
-        'Connection interrupted during transfer (network pause over 25s).'
+        t('dm_midstall')
       );
 
       try {
@@ -333,7 +334,7 @@ export async function downloadStream(
           received += value.length;
           resetStallWatchdog(
             STALL_TIMEOUT_MS,
-            'Connection interrupted during transfer (network pause over 25s).'
+            t('dm_midstall')
           );
         }
 
@@ -369,7 +370,7 @@ export async function downloadStream(
         progress: 0,
         bytesReceived: 0,
         totalBytes: 0,
-        speed: 'Cancelled'
+        speed: t('dm_cancelled')
       });
       return;
     }
@@ -383,7 +384,7 @@ export async function downloadStream(
             progress: total > 0 ? Math.min(99, Math.round((received / total) * 100)) : 0,
             bytesReceived: received,
             totalBytes: total,
-            speed: `Reconnecting (${resumeAttempts}/${MAX_RESUME_ATTEMPTS})...`
+            speed: t('dm_reconnecting', { a: resumeAttempts, b: MAX_RESUME_ATTEMPTS })
           });
 
           // Reset abort controller and stall state for next attempt
@@ -396,7 +397,7 @@ export async function downloadStream(
         }
 
         throw new Error(
-          `Network error: connection interrupted after ${formatBytes(received)}${total > 0 ? ` of ${formatBytes(total)}` : ''} after ${resumeAttempts} reconnection attempts.`
+          t('dm_interrupted2', { r: formatBytes(received), t: total > 0 ? ` of ${formatBytes(total)}` : '', n: resumeAttempts })
         );
       }
 
@@ -405,7 +406,7 @@ export async function downloadStream(
     }
 
     if (received === 0) {
-      throw new Error('The downloaded file is empty (0 bytes received).');
+      throw new Error(t('dm_emptyfile'));
     }
 
     // Determine MIME type based on format / type
@@ -443,7 +444,7 @@ export async function downloadStream(
 
     const blob = new Blob(chunks, { type: mimeType });
     if (blob.size === 0) {
-      throw new Error('The generated file is empty (0 bytes).');
+      throw new Error(t('dm_emptyblob'));
     }
 
     const objectUrl = URL.createObjectURL(blob);
@@ -462,7 +463,7 @@ export async function downloadStream(
       progress: 100,
       bytesReceived: received,
       totalBytes: total || received,
-      speed: 'Completed'
+      speed: t('dm_completed')
     });
   } catch (err: any) {
     clearStallWatchdog();
@@ -472,19 +473,19 @@ export async function downloadStream(
         progress: 0,
         bytesReceived: 0,
         totalBytes: 0,
-        speed: 'Cancelled'
+        speed: t('dm_cancelled')
       });
       return;
     }
 
     if (isInternalStall) {
-      const stallErr = new Error(`Network error: ${stallReason || 'Connection interrupted by network inactivity.'}`);
+      const stallErr = new Error(`${t('dm_net_prefix')}${stallReason || t('dm_stallnet')}`);
       notify({
         isDownloading: false,
         progress: 0,
         bytesReceived: 0,
         totalBytes: 0,
-        speed: 'Error',
+        speed: t('dm_failed'),
         error: stallErr.message
       });
       throw stallErr;
@@ -495,10 +496,10 @@ export async function downloadStream(
       progress: 0,
       bytesReceived: 0,
       totalBytes: 0,
-      speed: 'Error',
+      speed: t('dm_failed'),
       error: browserSaveAttempted
-        ? `${err.message || 'CORS / network block'}. A direct download has been started in your browser.`
-        : (err.message || 'Download error')
+        ? `${err.message || t('dm_cors')}${t('dm_cors_suffix')}`
+        : (err.message || t('dm_download_error'))
     });
 
     throw err;

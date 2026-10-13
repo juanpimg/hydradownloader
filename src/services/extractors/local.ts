@@ -1,4 +1,5 @@
 import { MediaMetadata, MediaFormat, MediaType } from './types';
+import { t } from '../i18n';
 
 const LOCAL_MEDIA_EXTENSIONS =
   /\.(mp4|webm|mkv|mov|mp3|m4a|wav|aac|ogg|flac|opus|jpg|jpeg|png|webp|gif)(\?.*)?$/i;
@@ -33,7 +34,7 @@ export function createLocalFileMedia(file: File): MediaMetadata {
     streams: [
       {
         id: `local-${Date.now()}`,
-        label: `Local File (${format.toUpperCase()} — ${(file.size / 1024 / 1024).toFixed(1)} MB)`,
+        label: t('lx_label', { f: format.toUpperCase(), mb: (file.size / 1024 / 1024).toFixed(1) }),
         quality: 'original',
         format,
         type,
@@ -42,6 +43,6 @@ export function createLocalFileMedia(file: File): MediaMetadata {
         fileSize: file.size
       }
     ],
-    extractedVia: 'Local File (no network)'
+    extractedVia: t('file_via')
   };
 }

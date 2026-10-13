@@ -1,6 +1,7 @@
 import { HistoryItem } from '../services/storage';
 import { triggerBrowserSave, sanitizeFilename } from '../services/downloadManager';
 import { X, History, Download, Trash2, ExternalLink, Film, Music } from 'lucide-react';
+import { t } from '../services/i18n';
 
 interface HistoryDrawerProps {
   isOpen: boolean;
@@ -14,13 +15,13 @@ interface HistoryDrawerProps {
 function timeAgo(timestamp: number): string {
   const diffMs = Date.now() - timestamp;
   const diffSec = Math.floor(diffMs / 1000);
-  if (diffSec < 60) return 'Just now';
+  if (diffSec < 60) return t('time_now');
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffMin < 60) return t('time_min', { n: diffMin });
   const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours} h ago`;
+  if (diffHours < 24) return t('time_hour', { n: diffHours });
   const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} d ago`;
+  return t('time_day', { n: diffDays });
 }
 
 export function HistoryDrawer({
@@ -44,9 +45,9 @@ export function HistoryDrawer({
             </div>
             <div>
               <h3 className="text-base font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
-                Download History
+                {t('hist_title')}
               </h3>
-              <p className="text-xs text-[#86868b]">{items.length} items stored locally</p>
+              <p className="text-xs text-[#86868b]">{t('hist_sub', { n: items.length })}</p>
             </div>
           </div>
           <button
@@ -66,10 +67,10 @@ export function HistoryDrawer({
                 <History className="w-7 h-7 stroke-[1.5] opacity-50" />
               </div>
               <p className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] mb-1">
-                No recent downloads
+                {t('hist_empty_t')}
               </p>
               <p className="text-xs max-w-xs">
-                Files you download will appear here for easy access.
+                {t('hist_empty_d')}
               </p>
             </div>
           ) : (
@@ -122,7 +123,7 @@ export function HistoryDrawer({
                         triggerBrowserSave(item.streamUrl, sanitizeFilename(item.title, item.format));
                       }
                     }}
-                    title="Download again"
+                    title={t('hist_redownload')}
                     className="p-1.5 rounded-full hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-colors"
                   >
                     <Download className="w-4 h-4" />
@@ -132,7 +133,7 @@ export function HistoryDrawer({
                     href={item.originalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    title="Open original link"
+                    title={t('hist_open')}
                     className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b] transition-colors"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -141,7 +142,7 @@ export function HistoryDrawer({
                   <button
                     type="button"
                     onClick={() => onRemoveItem(item.id)}
-                    title="Remove from history"
+                    title={t('hist_remove')}
                     className="p-1.5 rounded-full hover:bg-red-500/10 text-red-500 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -161,14 +162,14 @@ export function HistoryDrawer({
               className="text-xs text-red-500 hover:text-red-600 transition-colors flex items-center gap-1"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Clear History</span>
+              <span>{t('hist_clear')}</span>
             </button>
             <button
               type="button"
               onClick={onClose}
               className="px-4 py-1.5 rounded-full bg-black/5 dark:bg-white/10 text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/10 dark:hover:bg-white/15 transition-all"
             >
-              Close
+              {t('hist_close')}
             </button>
           </div>
         )}

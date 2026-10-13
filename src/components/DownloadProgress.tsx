@@ -1,5 +1,6 @@
 import { DownloadProgressState, formatBytes } from '../services/downloadManager';
 import { X, CheckCircle, AlertCircle } from 'lucide-react';
+import { t } from '../services/i18n';
 
 interface DownloadProgressProps {
   state: DownloadProgressState;
@@ -23,10 +24,10 @@ export function DownloadProgress({ state, onCancel }: DownloadProgressProps) {
           )}
           <span className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
             {isFinished
-              ? 'Download complete'
+              ? t('prog_done')
               : isError
-              ? 'Download error'
-              : 'Downloading file...'}
+              ? t('prog_error')
+              : t('prog_busy')}
           </span>
         </div>
 
@@ -36,7 +37,7 @@ export function DownloadProgress({ state, onCancel }: DownloadProgressProps) {
             <button
               type="button"
               onClick={onCancel}
-              title="Cancel download"
+              title={t('prog_cancel')}
               className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b] hover:text-red-500 transition-colors"
             >
               <X className="w-4 h-4" />

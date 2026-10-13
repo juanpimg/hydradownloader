@@ -1,6 +1,7 @@
 import { useState, useId } from 'react';
 import { AppSettings, saveSettings } from '../services/storage';
 import { X, Sliders, Trash2, HardDrive } from 'lucide-react';
+import { t } from '../services/i18n';
 
 interface SettingsSheetProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export function SettingsSheet({
   const preferredModeId = useId();
   const defaultQualityId = useId();
   const defaultAudioFormatId = useId();
+  const languageId = useId();
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
 
   if (!isOpen) return null;
@@ -42,9 +44,9 @@ export function SettingsSheet({
             </div>
             <div>
               <h3 className="text-base font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
-                HydraDownloader Settings
+                {t('set_title')}
               </h3>
-              <p className="text-xs text-[#86868b]">100% local • No APIs • No proxies</p>
+              <p className="text-xs text-[#86868b]">{t('set_sub')}</p>
             </div>
           </div>
           <button
@@ -60,13 +62,29 @@ export function SettingsSheet({
           {/* General Preferences */}
           <div className="space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-[#86868b] flex items-center gap-1.5">
-              <span>General Preferences</span>
+              <span>{t('set_general')}</span>
             </h4>
 
             <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-3.5 space-y-3 border border-black/5 dark:border-white/5">
               <div className="flex items-center justify-between">
+                <label htmlFor={languageId} className="text-xs font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
+                  {t('set_language')}
+                </label>
+                <select
+                  id={languageId}
+                  value={localSettings.locale}
+                  onChange={(e) => handleChange('locale', e.target.value)}
+                  className="text-xs bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] px-3 py-1.5 rounded-xl border border-black/10 dark:border-white/10 outline-none"
+                >
+                  <option value="system">{t('set_lang_system')}</option>
+                  <option value="en">{t('set_lang_en')}</option>
+                  <option value="es">{t('set_lang_es')}</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between">
                 <label htmlFor={preferredModeId} className="text-xs font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
-                  Default mode:
+                  {t('set_mode')}
                 </label>
                 <select
                   id={preferredModeId}
@@ -74,14 +92,14 @@ export function SettingsSheet({
                   onChange={(e) => handleChange('preferredMode', e.target.value)}
                   className="text-xs bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] px-3 py-1.5 rounded-xl border border-black/10 dark:border-white/10 outline-none"
                 >
-                  <option value="video">Video</option>
-                  <option value="audio">Audio Only</option>
+                  <option value="video">{t('mode_video')}</option>
+                  <option value="audio">{t('mode_audio')}</option>
                 </select>
               </div>
 
               <div className="flex items-center justify-between">
                 <label htmlFor={defaultQualityId} className="text-xs font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
-                  Video quality:
+                  {t('set_quality')}
                 </label>
                 <select
                   id={defaultQualityId}
@@ -89,7 +107,7 @@ export function SettingsSheet({
                   onChange={(e) => handleChange('defaultQuality', e.target.value)}
                   className="text-xs bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] px-3 py-1.5 rounded-xl border border-black/10 dark:border-white/10 outline-none"
                 >
-                  <option value="best">Best Quality (1080p / 4K)</option>
+                  <option value="best">{t('set_quality_best')}</option>
                   <option value="1080">1080p FHD</option>
                   <option value="720">720p HD</option>
                   <option value="480">480p SD</option>
@@ -98,7 +116,7 @@ export function SettingsSheet({
 
               <div className="flex items-center justify-between">
                 <label htmlFor={defaultAudioFormatId} className="text-xs font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
-                  Audio format:
+                  {t('set_format')}
                 </label>
                 <select
                   id={defaultAudioFormatId}
@@ -117,9 +135,9 @@ export function SettingsSheet({
           <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3.5 flex items-start gap-2.5">
             <HardDrive className="w-4 h-4 mt-0.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <div className="text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
-              <p className="font-semibold">Local-only mode active</p>
+              <p className="font-semibold">{t('set_local_t')}</p>
               <p className="mt-0.5 opacity-90">
-                No external API calls, no CORS proxies, no servers. Only direct links and files from your device.
+                {t('set_local_d')}
               </p>
             </div>
           </div>
@@ -129,14 +147,14 @@ export function SettingsSheet({
             <button
               type="button"
               onClick={() => {
-                if (confirm('Do you want to clear your entire download history?')) {
+                if (confirm(t('set_confirm'))) {
                   onClearHistory();
                 }
               }}
               className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Clear Local History</span>
+              <span>{t('set_clear')}</span>
             </button>
 
             <button
@@ -144,7 +162,7 @@ export function SettingsSheet({
               onClick={onClose}
               className="px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-apple-subtle transition-all"
             >
-              Done
+              {t('set_done')}
             </button>
           </div>
         </div>

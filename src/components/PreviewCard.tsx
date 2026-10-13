@@ -3,6 +3,7 @@ import { MediaMetadata, StreamOption } from '../services/extractors/types';
 import { Download, Film, Music, Copy, Check, Clock, User } from 'lucide-react';
 import { SegmentedControl } from './SegmentedControl';
 import { formatBytes } from '../services/downloadManager';
+import { t } from '../services/i18n';
 
 interface PreviewCardProps {
   media: MediaMetadata;
@@ -134,8 +135,8 @@ export function PreviewCard({ media, preferredMode, onDownload, isDownloading }:
                     if (targetList[0]) setSelectedStreamId(targetList[0].id);
                   }}
                   options={[
-                    { value: 'video', label: 'Video', icon: <Film className="w-3.5 h-3.5" /> },
-                    { value: 'audio', label: 'Audio Only', icon: <Music className="w-3.5 h-3.5" /> }
+                    { value: 'video', label: t('mode_video'), icon: <Film className="w-3.5 h-3.5" /> },
+                    { value: 'audio', label: t('mode_audio'), icon: <Music className="w-3.5 h-3.5" /> }
                   ]}
                 />
               </div>
@@ -147,7 +148,7 @@ export function PreviewCard({ media, preferredMode, onDownload, isDownloading }:
             {availableStreams.length > 1 && (
               <div className="flex items-center justify-between gap-3">
                 <label htmlFor={qualitySelectId} className="text-xs font-medium text-[#86868b]">
-                  Quality / Format:
+                  {t('quality_format')}
                 </label>
                 <select
                   id={qualitySelectId}
@@ -173,7 +174,7 @@ export function PreviewCard({ media, preferredMode, onDownload, isDownloading }:
               >
                 {effectiveMode === 'audio' ? <Music className="w-4 h-4" /> : <Download className="w-4 h-4" />}
                 <span>
-                  {effectiveMode === 'audio' ? 'Download Audio' : 'Download Video'}
+                  {effectiveMode === 'audio' ? t('dl_audio') : t('dl_video')}
                 </span>
                 {activeStream?.format && (
                   <span className="text-[11px] opacity-80 uppercase font-mono">
@@ -185,7 +186,7 @@ export function PreviewCard({ media, preferredMode, onDownload, isDownloading }:
               <button
                 type="button"
                 onClick={handleCopyLink}
-                title="Copy direct link"
+                title={t('copy_link')}
                 className="p-2.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-all"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}

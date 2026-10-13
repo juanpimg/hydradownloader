@@ -7,6 +7,7 @@ import { SettingsSheet } from './components/SettingsSheet';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { extractMedia, createLocalFileMedia, MediaMetadata, StreamOption } from './services/extractors';
 import { downloadStream, DownloadProgressState } from './services/downloadManager';
+import { t, setLocale, resolveLocale } from './services/i18n';
 import {
   getSettings,
   getHistory,
@@ -58,6 +59,13 @@ export function App() {
     }
   }, [settings.theme]);
 
+  // Sync language: stored preference, otherwise browser language
+  useEffect(() => {
+    const resolved = resolveLocale(settings.locale);
+    setLocale(resolved);
+    document.documentElement.lang = resolved;
+  }, [settings.locale]);
+
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
@@ -82,10 +90,10 @@ export function App() {
       if (result.success && result.data) {
         setMedia(result.data);
       } else {
-        setError(result.error || 'Could not extract content from this link.');
+        setError(result.error || t('err_extract'));
       }
     } catch (err: any) {
-      setError(err.message || 'Unexpected connection error.');
+      setError(err.message || t('err_connect'));
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +108,7 @@ export function App() {
       setMedia(localMedia);
       setUrl('');
     } catch (err: any) {
-      setError(err.message || 'Could not load the local file.');
+      setError(err.message || t('err_localfile'));
     }
   };
 
@@ -137,10 +145,10 @@ export function App() {
           thumbnailUrl: media.thumbnailUrl
         });
         setHistory(getHistory());
-        setDownloadNotice('Download started directly in your browser.');
+        setDownloadNotice(t('notice_browser'));
         return;
       }
-      setError(`Download error: ${err.message}`);
+      setError(`${t('err_download_prefix')}${err.message}`);
     }
   };
 
@@ -163,10 +171,10 @@ export function App() {
       });
     } catch (err: any) {
       if (err?.isBrowserSaveInitiated) {
-        setDownloadNotice('Download started directly in your browser.');
+        setDownloadNotice(t('notice_browser'));
         return;
       }
-      setError(`History download error: ${err.message}. The temporary link may have expired.`);
+      setError(`${t('err_history_prefix')}${err.message}${t('err_history_suffix')}`);
     }
   };
 
@@ -187,25 +195,25 @@ export function App() {
         <div className="text-center space-y-4 mb-8 sm:mb-10 max-w-2xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold tracking-wide uppercase">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>100% Local • No APIs • No Servers</span>
+            <span>{t('badge')}</span>
           </div>
 
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7] leading-tight">
-            Download video and audio <br className="hidden sm:inline" />
-            instantly.
+            {t('hero_title_a')} <br className="hidden sm:inline" />
+            {t('hero_title_b')}
           </h2>
 
           <p className="text-sm sm:text-base text-[#86868b] max-w-lg mx-auto">
-            Paste a direct file link or load a file from your device. Everything runs in your browser, with no external calls.
+            {t('hero_sub')}
           </p>
 
           {/* Supported platform chips */}
           <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs text-[#86868b]">
             <span className="flex items-center gap-1 bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
-              <FileVideo className="w-3.5 h-3.5 text-emerald-500" /> Direct links
+              <FileVideo className="w-3.5 h-3.5 text-emerald-500" /> {t('chip_direct')}
             </span>
             <span className="flex items-center gap-1 bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
-              <HardDrive className="w-3.5 h-3.5 text-blue-500" /> Local files
+              <HardDrive className="w-3.5 h-3.5 text-blue-500" /> {t('chip_local')}
             </span>
             <span className="flex items-center gap-1 bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
               <FileVideo className="w-3.5 h-3.5 text-violet-500" /> MP4 / WebM
@@ -232,14 +240,14 @@ export function App() {
 
         {/* Local file picker */}
         <div className="mt-4 flex items-center gap-3">
-          <span className="text-xs text-[#86868b]">or</span>
+          <span className="text-xs text-[#86868b]">{t('or')}</span>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-[#1d1d1f] dark:text-[#f5f5f7] transition-all"
           >
             <HardDrive className="w-3.5 h-3.5" />
-            Load local file
+            {t('load_local')}
           </button>
           <input
             ref={fileInputRef}
@@ -254,9 +262,9 @@ export function App() {
         <div className="w-full max-w-2xl mt-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs sm:text-sm flex items-start gap-3">
           <FlaskConical className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="font-semibold">We don’t support YouTube or other platforms yet — we need your help</p>
+            <p className="font-semibold">{t('help_title')}</p>
             <p className="mt-0.5 opacity-90">
-              The browser blocks reading those videos, and we are still looking for a 100% local way to solve it.
+              {t('help_body')}
             </p>
             <a
               href="https://github.com/juanpimg/hydradownloader/blob/main/docs/LOCAL-ONLY-RESEARCH.md"
@@ -264,7 +272,7 @@ export function App() {
               rel="noopener noreferrer"
               className="mt-1.5 inline-block font-semibold underline underline-offset-2 hover:opacity-80"
             >
-              Read the research and how to help
+              {t('help_link')}
             </a>
           </div>
         </div>
@@ -274,7 +282,7 @@ export function App() {
           <div className="w-full max-w-2xl mt-5 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs sm:text-sm flex items-start gap-3 animate-in fade-in zoom-in-95">
             <Download className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold">Alternative download started</p>
+              <p className="font-semibold">{t('notice_alt')}</p>
               <p className="mt-0.5 opacity-90">{downloadNotice}</p>
             </div>
           </div>
@@ -285,7 +293,7 @@ export function App() {
           <div className="w-full max-w-2xl mt-5 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs sm:text-sm flex items-start gap-3 animate-in fade-in zoom-in-95">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold">Notice</p>
+              <p className="font-semibold">{t('notice_title')}</p>
               <p className="mt-0.5 opacity-90">{error}</p>
             </div>
           </div>
@@ -317,9 +325,9 @@ export function App() {
               <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto sm:mx-0">
                 <ShieldCheck className="w-5 h-5" />
               </div>
-              <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Total Privacy</h3>
+              <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">{t('card_privacy_t')}</h3>
               <p className="text-xs text-[#86868b] leading-relaxed">
-                Zero external API calls. No proxies, no instances, no tracking. Just your browser.
+                {t('card_privacy_d')}
               </p>
             </div>
 
@@ -327,9 +335,9 @@ export function App() {
               <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto sm:mx-0">
                 <Zap className="w-5 h-5" />
               </div>
-              <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">High Speed</h3>
+              <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">{t('card_speed_t')}</h3>
               <p className="text-xs text-[#86868b] leading-relaxed">
-                Direct downloads with range resume and instant local save.
+                {t('card_speed_d')}
               </p>
             </div>
 
@@ -337,9 +345,9 @@ export function App() {
               <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto sm:mx-0">
                 <Sparkles className="w-5 h-5" />
               </div>
-              <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Suite HydraApps</h3>
+              <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">{t('card_suite_t')}</h3>
               <p className="text-xs text-[#86868b] leading-relaxed">
-                Edit your downloads in HydraCut or send them to HydraConvert in one click.
+                {t('card_suite_d')}
               </p>
             </div>
           </div>
@@ -377,7 +385,7 @@ export function App() {
           </a>
         </div>
         <p>
-          HydraDownloader — Part of the <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">HydraApps</span> media suite. 100% local, inspired by Apple HIG.
+          {t('footer_a')}<span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">HydraApps</span>{t('footer_b')}
         </p>
       </footer>
 
