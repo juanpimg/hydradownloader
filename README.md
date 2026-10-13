@@ -93,3 +93,12 @@ Detector de Plataforma
 ## 🔒 Seguridad
 
 Sin backend propio: solo consume APIs públicas de terceros (Cobalt, Invidious/Piped, TikWM, FxTwitter) sin claves. No hay secretos en el repo; `.env*` está ignorado en `.gitignore`. El historial y ajustes viven en `localStorage` de tu navegador.
+
+---
+
+## ⚖️ Aviso legal
+
+- **Uso legítimo:** descarga únicamente contenido del que poseas los derechos, que sea de dominio público o con licencia que lo permita, o cuando la legislación de tu país lo autorice (p. ej. copia privada). Respeta los Términos de Servicio de cada plataforma (YouTube, TikTok, X/Twitter, Reddit) y la normativa de propiedad intelectual y derechos de autor aplicable en tu jurisdicción.
+- **Sin elusión de protecciones:** no utilices esta herramienta para eludir medidas tecnológicas de protección (DRM) donde la ley lo prohíba.
+- **Servicios de terceros:** los extractores usan APIs e instancias públicas ajenas al autor (Cobalt, Invidious/Piped, TikWM, FxTwitter, proxies CORS), que pueden cambiar, dejar de funcionar o registrar tráfico. Úsalas bajo tu criterio.
+- **Sin garantías:** software "tal cual" (licencia MIT). El autor no responde de daños directos o indirectos derivados del uso o mal uso de esta herramienta, ni de la disponibilidad o legalidad del contenido descargado. La responsabilidad del uso es exclusivamente tuya.
