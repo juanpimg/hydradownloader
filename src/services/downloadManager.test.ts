@@ -264,6 +264,34 @@ describe('Download Manager - 0-byte and error prevention', () => {
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
+  it('rejects download immediately without saving when estimated-content-length is -1', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        'estimated-content-length': '-1'
+      }),
+      body: new ReadableStream({
+        start(controller) {
+          controller.close();
+        }
+      })
+    } as unknown as Response);
+
+    const onProgress = vi.fn();
+    await expect(downloadStream(sampleStream, 'Blocked Video', onProgress)).rejects.toThrow(
+      /respuesta vacía \(0 bytes\)/i
+    );
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(onProgress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isDownloading: false,
+        speed: 'Error',
+        error: expect.stringMatching(/0 bytes/i)
+      })
+    );
+  });
+
   it('correctly sets MIME types for audio, image, and video', async () => {
     const testData = new Uint8Array([10, 20, 30]);
 
@@ -420,6 +448,30 @@ describe('Cobalt probeTunnelUrl - 0-byte and tunnel probe resilience', () => {
     } as unknown as Response);
 
     const isValid = await probeTunnelUrl('https://tunnel.example.com/notfound.mp4');
+    expect(isValid).toBe(false);
+  });
+
+  it('rejects tunnel when estimated-content-length is -1', async () => {
+    const { probeTunnelUrl } = await import('./extractors/cobalt');
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'estimated-content-length': '-1' })
+    } as unknown as Response);
+
+    const isValid = await probeTunnelUrl('https://tunnel.example.com/blocked-tunnel.mp4');
+    expect(isValid).toBe(false);
+  });
+
+  it('rejects tunnel when estimated-content-length is 0', async () => {
+    const { probeTunnelUrl } = await import('./extractors/cobalt');
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'estimated-content-length': '0' })
+    } as unknown as Response);
+
+    const isValid = await probeTunnelUrl('https://tunnel.example.com/zero-est.mp4');
     expect(isValid).toBe(false);
   });
 });

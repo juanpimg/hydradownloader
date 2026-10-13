@@ -42,7 +42,11 @@ export async function downloadStream(
     throw new Error('Esta opción no contiene un archivo multimedia descargable directo.');
   }
 
-  if (stream.fileSize === 0) {
+  if (!stream.url || typeof stream.url !== 'string') {
+    throw new Error('La URL de descarga no es válida.');
+  }
+
+  if (stream.fileSize !== undefined && stream.fileSize <= 0) {
     throw new Error('El tamaño indicado para este archivo es de 0 bytes.');
   }
 
@@ -92,12 +96,30 @@ export async function downloadStream(
       throw new Error('El servidor devolvió una respuesta sin contenido (0 bytes).');
     }
 
-    const contentLength = response.headers.get('content-length') || response.headers.get('estimated-content-length');
-    if (contentLength && parseInt(contentLength.trim(), 10) === 0) {
+    const cl = response.headers.get('content-length');
+    const ecl = response.headers.get('estimated-content-length');
+    const cr = response.headers.get('content-range');
+
+    const clNum = cl !== null ? parseInt(cl.trim(), 10) : null;
+    const eclNum = ecl !== null ? parseInt(ecl.trim(), 10) : null;
+
+    if (clNum !== null && clNum <= 0) {
       throw new Error('El servidor devolvió una respuesta vacía (0 bytes).');
     }
 
-    const total = contentLength ? parseInt(contentLength, 10) : (stream.fileSize || 0);
+    if (eclNum !== null && eclNum <= 0) {
+      throw new Error('El servidor devolvió una respuesta vacía (0 bytes). El enlace de descarga fue bloqueado o no contiene datos.');
+    }
+
+    if (cr && (/\/0$/.test(cr.trim()) || /\/-1$/.test(cr.trim()))) {
+      throw new Error('El servidor devolvió una respuesta vacía (0 bytes).');
+    }
+
+    const total = (clNum !== null && clNum > 0)
+      ? clNum
+      : ((eclNum !== null && eclNum > 0)
+        ? eclNum
+        : (stream.fileSize || 0));
 
     if (!response.body) {
       throw new Error('El flujo de datos de la descarga no está disponible.');

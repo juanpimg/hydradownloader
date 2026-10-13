@@ -239,7 +239,7 @@ export const youtubeExtractor: Extractor = {
 
     return {
       success: false,
-      error: 'No se pudo obtener el archivo de descarga para este vídeo de YouTube. Verifica la URL o que el vídeo no sea privado.'
+      error: 'No se pudo obtener el archivo de descarga para este vídeo de YouTube debido a restricciones de la plataforma o instancias no disponibles. Verifica la URL o intenta con otra instancia en Ajustes.'
     };
   }
 };

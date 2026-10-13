@@ -34,7 +34,7 @@ export function setCustomCobaltInstance(instanceUrl: string): void {
 
 /**
  * Validates or probes that a returned tunnel URL actually yields data.
- * Checks HTTP status and headers (rejects content-length or estimated-content-length of '0').
+ * Checks HTTP status and headers (rejects content-length or estimated-content-length <= 0, including -1).
  */
 export async function probeTunnelUrl(url: string, signal?: AbortSignal, timeoutMs = 4500): Promise<boolean> {
   const controller = new AbortController();
@@ -46,6 +46,7 @@ export async function probeTunnelUrl(url: string, signal?: AbortSignal, timeoutM
 
   try {
     let res: Response | null = null;
+    let isFromHead = false;
     try {
       const headRes = await fetch(url, {
         method: 'HEAD',
@@ -54,6 +55,7 @@ export async function probeTunnelUrl(url: string, signal?: AbortSignal, timeoutM
       // If HEAD is successful and not 405/403/etc.
       if (headRes.ok) {
         res = headRes;
+        isFromHead = true;
       }
     } catch {
       // HEAD network error or blocked; fallback to Range GET
@@ -67,7 +69,22 @@ export async function probeTunnelUrl(url: string, signal?: AbortSignal, timeoutM
         signal: controller.signal
       });
       if (res.body) {
-        res.body.cancel().catch(() => {});
+        if (typeof (res.body as any).getReader === 'function') {
+          try {
+            const reader = res.body.getReader();
+            const { done, value } = await reader.read();
+            reader.cancel().catch(() => {});
+            if (done || !value || value.length === 0) {
+              clearTimeout(timeout);
+              return false;
+            }
+          } catch {
+            clearTimeout(timeout);
+            return false;
+          }
+        } else if (typeof (res.body as any).cancel === 'function') {
+          res.body.cancel().catch(() => {});
+        }
       }
     }
 
@@ -81,12 +98,56 @@ export async function probeTunnelUrl(url: string, signal?: AbortSignal, timeoutM
     const ecl = res.headers.get('estimated-content-length');
     const cr = res.headers.get('content-range');
 
-    if ((cl !== null && parseInt(cl.trim(), 10) === 0) || (ecl !== null && parseInt(ecl.trim(), 10) === 0)) {
+    const clNum = cl !== null ? parseInt(cl.trim(), 10) : null;
+    const eclNum = ecl !== null ? parseInt(ecl.trim(), 10) : null;
+
+    // Reject 0 bytes or negative content lengths (such as -1 used by backends when tunnel is blocked or empty)
+    if (clNum !== null && (isNaN(clNum) || clNum <= 0)) {
       return false;
     }
 
-    if (cr && /\/0$/.test(cr.trim())) {
+    if (eclNum !== null && (isNaN(eclNum) || eclNum <= 0)) {
       return false;
+    }
+
+    if (cr) {
+      const trimmedCr = cr.trim();
+      if (/\/0$/.test(trimmedCr) || /\/-1$/.test(trimmedCr)) {
+        return false;
+      }
+      const match = trimmedCr.match(/\/([0-9]+)$/);
+      if (match && parseInt(match[1], 10) <= 0) {
+        return false;
+      }
+    }
+
+    // If HEAD succeeded but had neither content-length nor estimated-content-length,
+    // verify with Range GET to ensure it's not a dummy 0-byte stream
+    if (isFromHead && res.ok && cl === null && ecl === null) {
+      try {
+        const getRes = await fetch(url, {
+          method: 'GET',
+          headers: { Range: 'bytes=0-0' },
+          signal: controller.signal
+        });
+        if (!getRes.ok && getRes.status !== 206) {
+          return false;
+        }
+        if (getRes.body) {
+          if (typeof (getRes.body as any).getReader === 'function') {
+            const reader = getRes.body.getReader();
+            const { done, value } = await reader.read();
+            reader.cancel().catch(() => {});
+            if (done || !value || value.length === 0) {
+              return false;
+            }
+          } else if (typeof (getRes.body as any).cancel === 'function') {
+            getRes.body.cancel().catch(() => {});
+          }
+        }
+      } catch {
+        return false;
+      }
     }
 
     return true;
@@ -105,13 +166,21 @@ export const cobaltExtractor: Extractor = {
   },
 
   async extract(url: string, signal?: AbortSignal): Promise<ExtractionResult> {
-    const activeInstance = getCustomCobaltInstance();
-    const candidateInstances = [
-      activeInstance,
-      ...DEFAULT_COBALT_INSTANCES.filter((i) => i !== activeInstance)
-    ];
+    const isYouTube = /(?:youtube\.com|youtu\.be)/i.test(url);
+    const activeInstance = getCustomCobaltInstance()?.trim().replace(/\/$/, '');
+    const candidateInstances: string[] = [];
+    if (activeInstance) {
+      candidateInstances.push(activeInstance);
+    }
+    for (const inst of DEFAULT_COBALT_INSTANCES) {
+      const normalized = inst.trim().replace(/\/$/, '');
+      if (!candidateInstances.includes(normalized)) {
+        candidateInstances.push(normalized);
+      }
+    }
 
     let lastError = 'No se pudo conectar a ninguna instancia de Cobalt.';
+    let youtubeRestricted = false;
 
     for (const instance of candidateInstances) {
       const controller = new AbortController();
@@ -144,6 +213,13 @@ export const cobaltExtractor: Extractor = {
 
         if (!response.ok) {
           const text = await response.text().catch(() => '');
+          if (
+            response.status === 403 ||
+            response.status === 429 ||
+            /youtube|restricted|bot|sign in|login/i.test(text)
+          ) {
+            youtubeRestricted = true;
+          }
           lastError = `Instancia ${instance} respondió con error ${response.status}: ${text}`;
           continue;
         }
@@ -151,6 +227,17 @@ export const cobaltExtractor: Extractor = {
         const data = await response.json();
 
         if (data.status === 'error') {
+          const errCode = (data.error?.code || '').toLowerCase();
+          const errText = (data.text || '').toLowerCase();
+          if (
+            errCode.includes('youtube') ||
+            errCode.includes('login') ||
+            errCode.includes('bot') ||
+            errCode.includes('restricted') ||
+            /youtube|bot|login|restricted|sign in/i.test(errText)
+          ) {
+            youtubeRestricted = true;
+          }
           lastError = data.text || data.error?.code || 'Error devuelto por Cobalt';
           continue;
         }
@@ -166,6 +253,7 @@ export const cobaltExtractor: Extractor = {
           // Probe that the returned tunnel URL actually yields data
           const isValidTunnel = await probeTunnelUrl(data.url, signal);
           if (!isValidTunnel) {
+            youtubeRestricted = true;
             lastError = `Instancia ${instance} devolvió un tunnel vacío o no accesible.`;
             continue;
           }
@@ -264,6 +352,10 @@ export const cobaltExtractor: Extractor = {
       } catch (err: any) {
         lastError = err.message || 'Error de conexión';
       }
+    }
+
+    if (isYouTube || youtubeRestricted) {
+      lastError = 'No fue posible descargar el vídeo debido a restricciones de YouTube en las instancias de Cobalt. Por favor, intenta de nuevo más tarde o configura una instancia alternativa en Ajustes.';
     }
 
     return { success: false, error: lastError };
