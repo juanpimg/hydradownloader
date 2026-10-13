@@ -1,5 +1,9 @@
 # HydraDownloader 📥
 
+[![Client-Side](https://img.shields.io/badge/Architecture-100%25%20Client--Side-emerald)](#)
+[![Privacy](https://img.shields.io/badge/Privacy-Zero%20Data%20Collected-blue)](#)
+[![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
+
 > Descargador multimedia universal de vídeo y audio **100% client-side**, sin backend y con diseño **Apple Human Interface Guidelines (HIG)**. Parte de la suite **HydraApps**.
 
 Inspirado en la simplicidad y experiencia de usuario de [Cobalt](https://github.com/imputnet/cobalt) y en los principios de diseño de Apple ([dickwu/apple-design-skill](https://github.com/dickwu/apple-design-skill)).
@@ -83,3 +87,9 @@ Detector de Plataforma
 - **Tailwind CSS 3** con tokens Apple HIG y Liquid Glass
 - **Lucide React** (iconografía inspirada en SF Symbols)
 - **Vitest** (suite de pruebas unitarias para extractores y parseo)
+
+---
+
+## 🔒 Seguridad
+
+Sin backend propio: solo consume APIs públicas de terceros (Cobalt, Invidious/Piped, TikWM, FxTwitter) sin claves. No hay secretos en el repo; `.env*` está ignorado en `.gitignore`. El historial y ajustes viven en `localStorage` de tu navegador.

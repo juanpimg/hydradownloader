@@ -6,3 +6,15 @@ dist-ssr
 # Added by code-review-graph
 .code-review-graph/
 .agents/
+
+# secrets / env — nunca subir claves ni certificados locales
+.env*
+!.env.example
+.certs/
+*.pem
+*.key
+
+# logs / test
+*.log
+npm-debug.log*
+test-artifacts/
