@@ -1,34 +1,36 @@
 # HydraDownloader 📥
 
-[![Client-Side](https://img.shields.io/badge/Architecture-100%25%20Client--Side-emerald)](#)
+[![Local-Only](https://img.shields.io/badge/Architecture-100%25%20Local-emerald)](#)
 [![Privacy](https://img.shields.io/badge/Privacy-Zero%20Data%20Collected-blue)](#)
 [![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
-> Descargador multimedia universal de vídeo y audio **100% client-side**, sin backend y con diseño **Apple Human Interface Guidelines (HIG)**. Parte de la suite **HydraApps**.
+> Descargador 100% local en el navegador: enlaces directos y archivos de tu dispositivo, **sin APIs externas, sin proxies y sin backend**. Parte de la suite **HydraApps**.
 
-Inspirado en la simplicidad y experiencia de usuario de [Cobalt](https://github.com/imputnet/cobalt) y en los principios de diseño de Apple ([dickwu/apple-design-skill](https://github.com/dickwu/apple-design-skill)).
+Lo que nos diferencia: **cero llamadas a APIs de terceros**. Todo ocurre en tu navegador.
+
+> 🔬 **Reto abierto: YouTube 100% local.** Hoy las URLs de plataforma se
+> rechazan (el navegador bloquea la lectura cross-origin sin `ACAO`, probado
+> con URL real de `googlevideo`). Buscamos una PoC en página pura que devuelva
+> ≥1 byte legible sin proxy ni extensión. Ver
+> [`docs/LOCAL-ONLY-RESEARCH.md`](./docs/LOCAL-ONLY-RESEARCH.md) — ¡se aceptan
+> issues y PRs con refutaciones!
 
 ---
 
 ## ⚡ Características Principales
 
-- **100% Client-Side**: No requiere ni utiliza ningún servidor backend propio de HydraApps. Todas las solicitudes y procesamientos ocurren directamente en el navegador del usuario.
-- **Extractores Modulares sin Servidor**:
-  - **Twitter / X**: Vía API abierta FxTwitter con soporte de MP4 en calidad nativa y separación de audio.
-  - **TikTok**: Vía TikWM sin marca de agua (HD) y pista de sonido original MP3.
-  - **Reddit**: Vía endpoints públicos nativos `.json` de Reddit.
-  - **YouTube**: Vía APIs abiertas Piped / Invidious y fallback progresivo.
-  - **Enlaces directos**: Inspección y descarga de archivos `.mp4`, `.webm`, `.mp3`, `.m4a`, `.wav`, etc.
-  - **Fallback Universal Cobalt**: Conector a instancias públicas de Cobalt API v7/v10 con selector de instancia.
+- **100% Local**: Sin backend propio y sin APIs de terceros. Sin FxTwitter, TikWM, Cobalt, Invidious, Piped ni proxies CORS. Solo `fetch` directo al archivo que tú indicas y `blob:` URLs de tus propios archivos.
+- **Dos únicas vías**:
+  - **Enlaces directos**: archivos `.mp4`, `.webm`, `.mp3`, `.m4a`, `.wav`, etc. con inspección HEAD local.
+  - **Archivos locales**: carga un vídeo/audio desde tu dispositivo y se procesa sin red (objeto Blob local).
 - **Apple HIG & Liquid Glass Aesthetics**:
   - Materiales translúcidos con desenfoque de fondo (`backdrop-blur-xl`, bordes sutiles y sombras elevadas).
   - Tipografía clara inspirada en SF Pro con jerarquía estricta.
   - Control segmentado fluido estilo iOS/macOS para alternar entre Vídeo y Solo Audio.
   - Hojas modales (Sheets) y cajones laterales para ajustes e historial.
   - Modo claro y oscuro con detección automática y selector manual.
-- **Gestión de Proxies CORS**:
-  - Soporte de proxies CORS públicos (`corsproxy.io`, `api.allorigins.win`) para evitar restricciones de navegador en llamadas cross-origin.
-  - Campo configurable para introducir tu propio proxy CORS o instancia Cobalt.
+- **Gestión local**:
+  - Sin proxies CORS ni instancias configurables. Si el servidor origen bloquea CORS, el navegador inicia la descarga directa como alternativa.
 - **Historial Local Privado**:
   - Almacena tus últimas descargas en `localStorage` (sin enviar nada a la nube).
   - Re-descarga en un clic o copia del enlace directo.
@@ -62,20 +64,19 @@ npm run build
 ## 🏗️ Arquitectura de Extracción
 
 ```text
-URL Introducida
-     │
-     ▼
-Detector de Plataforma
-     │
-     ├─► Twitter/X   ──► FxTwitter API ──────────┐
-     ├─► TikTok      ──► TikWM API ──────────────┤
-     ├─► Reddit      ──► Reddit JSON API ────────┼──► MediaMetadata & Streams
-     ├─► YouTube     ──► Piped API / Invidious ──┤           │
-     ├─► Direct Link ──► HEAD / MIME Inspector ──┤           ▼
-     └─► Desconocido ──► Instancia Cobalt ───────┘    Tarjeta Preview Apple HIG
-                                                             │
-                                                             ▼
-                                                    Descarga Progresiva / Blob
+URL directa o Archivo local
+      │
+      ▼
+Detector Local (direct / local / unknown)
+      │
+      ├─► Enlace directo ──► HEAD local / GET por rangos ──┐
+      └─► Archivo local ──► Blob URL (sin red) ───────────┼──► MediaMetadata & Streams
+                                                          │           │
+                                                          │           ▼
+                                                          │    Tarjeta Preview Apple HIG
+                                                          │           │
+                                                          │           ▼
+                                                          │    Descarga Progresiva / Blob
 ```
 
 ---
@@ -92,7 +93,7 @@ Detector de Plataforma
 
 ## 🔒 Seguridad
 
-Sin backend propio: solo consume APIs públicas de terceros (Cobalt, Invidious/Piped, TikWM, FxTwitter) sin claves. No hay secretos en el repo; `.env*` está ignorado en `.gitignore`. El historial y ajustes viven en `localStorage` de tu navegador.
+Sin backend propio y sin APIs de terceros: cero llamadas externas. Solo `fetch` directo al archivo que tú indicas (o ninguna red en el caso de archivos locales). No hay secretos en el repo; `.env*` está ignorado en `.gitignore`. El historial y ajustes viven en `localStorage` de tu navegador.
 
 ---
 

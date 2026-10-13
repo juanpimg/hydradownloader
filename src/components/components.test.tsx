@@ -47,7 +47,7 @@ describe('Responsive and Audio Detection Component Tests', () => {
     const mixedMedia: MediaMetadata = {
       id: 'test-mixed-1',
       originalUrl: 'https://example.com/video.mp4',
-      platform: 'youtube',
+      platform: 'direct',
       title: 'Awesome Video',
       streams: [
         {
@@ -69,7 +69,7 @@ describe('Responsive and Audio Detection Component Tests', () => {
           hasAudio: true
         }
       ],
-      extractedVia: 'Cobalt'
+      extractedVia: 'Enlace Directo Local (sin APIs)'
     };
 
     const html = renderToString(
@@ -105,7 +105,7 @@ describe('Responsive and Audio Detection Component Tests', () => {
   it('UrlInput collapses platform badges to icons only on mobile', () => {
     const html = renderToString(
       <UrlInput
-        url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        url="https://example.com/video.mp4"
         onChange={() => {}}
         onSubmit={() => {}}
         isLoading={false}

@@ -2,7 +2,7 @@
   "name": "hydra-downloader",
   "private": true,
   "version": "1.0.0",
-  "description": "HydraDownloader — descargador multimedia universal 100% client-side (sin servidor)",
+  "description": "HydraDownloader — descargador 100% local en el navegador (sin APIs, sin servidores, sin proxies)",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,8 +17,7 @@
     "lucide-react": "^0.475.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tailwind-merge": "^2.6.0",
-    "youtubei.js": "^18.1.0"
+    "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",

@@ -1,8 +1,6 @@
 import { useState, useId } from 'react';
 import { AppSettings, saveSettings } from '../services/storage';
-import { DEFAULT_CORS_PROXIES } from '../services/extractors/cors';
-import { DEFAULT_COBALT_INSTANCES } from '../services/extractors/cobalt';
-import { X, Server, Shield, Sliders, Trash2 } from 'lucide-react';
+import { X, Sliders, Trash2, HardDrive } from 'lucide-react';
 
 interface SettingsSheetProps {
   isOpen: boolean;
@@ -22,13 +20,7 @@ export function SettingsSheet({
   const preferredModeId = useId();
   const defaultQualityId = useId();
   const defaultAudioFormatId = useId();
-  const corsProxySelectId = useId();
-  const customCorsInputId = useId();
-  const cobaltInstanceSelectId = useId();
-  const customCobaltInputId = useId();
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
-  const [testResult, setTestResult] = useState<string | null>(null);
-  const [isTesting, setIsTesting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -37,30 +29,6 @@ export function SettingsSheet({
     setLocalSettings(updated);
     saveSettings({ [key]: value });
     onSettingsChange(updated);
-  };
-
-  const handleTestCobalt = async () => {
-    setIsTesting(true);
-    setTestResult(null);
-    try {
-      const endpoint = localSettings.cobaltInstance.endsWith('/')
-        ? localSettings.cobaltInstance
-        : `${localSettings.cobaltInstance}/`;
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: 'https://youtu.be/dQw4w9WgXcQ' })
-      });
-      if (res.ok) {
-        setTestResult('Conexión exitosa');
-      } else {
-        setTestResult(`Error HTTP ${res.status}`);
-      }
-    } catch (err: any) {
-      setTestResult(`Fallo: ${err.message || 'Error de red'}`);
-    } finally {
-      setIsTesting(false);
-    }
   };
 
   return (
@@ -76,7 +44,7 @@ export function SettingsSheet({
               <h3 className="text-base font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
                 Ajustes de HydraDownloader
               </h3>
-              <p className="text-xs text-[#86868b]">Configuración client-side y proxies</p>
+              <p className="text-xs text-[#86868b]">100% local • Sin APIs • Sin proxies</p>
             </div>
           </div>
           <button
@@ -145,110 +113,14 @@ export function SettingsSheet({
             </div>
           </div>
 
-          {/* CORS Proxy settings */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-[#86868b] flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5" />
-              <span>CORS Proxies (Extracción en Navegador)</span>
-            </h4>
-
-            <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-3.5 space-y-3 border border-black/5 dark:border-white/5">
-              <div className="space-y-1.5">
-                <label htmlFor={corsProxySelectId} className="text-xs font-medium text-[#1d1d1f] dark:text-[#f5f5f7] block">
-                  Proxy CORS predeterminado:
-                </label>
-                <select
-                  id={corsProxySelectId}
-                  value={localSettings.customCorsProxy ? 'custom' : 'codetabs'}
-                  onChange={(e) => {
-                    if (e.target.value !== 'custom') {
-                      handleChange('customCorsProxy', '');
-                    }
-                  }}
-                  className="w-full text-xs bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] px-3 py-2 rounded-xl border border-black/10 dark:border-white/10 outline-none"
-                >
-                  {DEFAULT_CORS_PROXIES.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                  <option value="custom">Personalizado (URL propia)</option>
-                </select>
-              </div>
-
-              {localSettings.customCorsProxy !== '' && (
-                <div className="space-y-1">
-                  <label htmlFor={customCorsInputId} className="text-[11px] text-[#86868b] block">URL del Proxy personalizado:</label>
-                  <input
-                    id={customCorsInputId}
-                    type="text"
-                    value={localSettings.customCorsProxy}
-                    onChange={(e) => handleChange('customCorsProxy', e.target.value)}
-                    placeholder="https://mi-cors-proxy.com/?url={url}"
-                    className="w-full text-xs bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] px-3 py-2 rounded-xl border border-black/10 dark:border-white/10 outline-none"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Cobalt Fallback Settings */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-[#86868b] flex items-center gap-1.5">
-              <Server className="w-3.5 h-3.5" />
-              <span>Instancia de Cobalt (Fallback)</span>
-            </h4>
-
-            <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-3.5 space-y-3 border border-black/5 dark:border-white/5">
-              <div className="space-y-1.5">
-                <label htmlFor={cobaltInstanceSelectId} className="text-xs font-medium text-[#1d1d1f] dark:text-[#f5f5f7] block">
-                  Servidor Cobalt:
-                </label>
-                <select
-                  id={cobaltInstanceSelectId}
-                  value={localSettings.cobaltInstance}
-                  onChange={(e) => handleChange('cobaltInstance', e.target.value)}
-                  className="w-full text-xs bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] px-3 py-2 rounded-xl border border-black/10 dark:border-white/10 outline-none"
-                >
-                  {DEFAULT_COBALT_INSTANCES.map((inst) => (
-                    <option key={inst} value={inst}>
-                      {inst}
-                    </option>
-                  ))}
-                  {!DEFAULT_COBALT_INSTANCES.includes(localSettings.cobaltInstance) && (
-                    <option value={localSettings.cobaltInstance}>
-                      Personalizada ({localSettings.cobaltInstance})
-                    </option>
-                  )}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label htmlFor={customCobaltInputId} className="text-[11px] text-[#86868b] block">URL de instancia personalizada:</label>
-                <div className="flex gap-2">
-                  <input
-                    id={customCobaltInputId}
-                    type="url"
-                    value={localSettings.cobaltInstance}
-                    onChange={(e) => handleChange('cobaltInstance', e.target.value)}
-                    placeholder="https://mi-cobalt.dominio.com"
-                    className="flex-1 text-xs bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] px-3 py-2 rounded-xl border border-black/10 dark:border-white/10 outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleTestCobalt}
-                    disabled={isTesting}
-                    className="px-3 py-2 text-xs font-medium rounded-xl bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-[#1d1d1f] dark:text-[#f5f5f7] transition-all disabled:opacity-50"
-                  >
-                    {isTesting ? 'Probando...' : 'Probar'}
-                  </button>
-                </div>
-                {testResult && (
-                  <p className={`text-[11px] font-medium pt-1 ${testResult.includes('exitosa') ? 'text-emerald-500' : 'text-amber-500'}`}>
-                    {testResult}
-                  </p>
-                )}
-              </div>
+          {/* Local-only notice */}
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3.5 flex items-start gap-2.5">
+            <HardDrive className="w-4 h-4 mt-0.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div className="text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
+              <p className="font-semibold">Modo solo-local activo</p>
+              <p className="mt-0.5 opacity-90">
+                Sin llamadas a APIs externas, sin proxies CORS y sin servidores. Solo enlaces directos y archivos de tu dispositivo.
+              </p>
             </div>
           </div>
 

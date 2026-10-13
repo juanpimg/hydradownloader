@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { UrlInput } from './components/UrlInput';
 import { PreviewCard } from './components/PreviewCard';
 import { DownloadProgress } from './components/DownloadProgress';
 import { SettingsSheet } from './components/SettingsSheet';
 import { HistoryDrawer } from './components/HistoryDrawer';
-import { extractMedia, MediaMetadata, StreamOption } from './services/extractors';
+import { extractMedia, createLocalFileMedia, MediaMetadata, StreamOption } from './services/extractors';
 import { downloadStream, DownloadProgressState } from './services/downloadManager';
 import {
   getSettings,
@@ -16,7 +16,7 @@ import {
   AppSettings,
   HistoryItem
 } from './services/storage';
-import { AlertCircle, Download, ShieldCheck, Zap, Sparkles, Youtube, Twitter, Disc, Link2 } from 'lucide-react';
+import { AlertCircle, Download, ShieldCheck, Zap, Sparkles, FileVideo, HardDrive, Music } from 'lucide-react';
 
 export function App() {
   const [url, setUrl] = useState('');
@@ -24,6 +24,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const [media, setMedia] = useState<MediaMetadata | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Settings & Theme
   const [settings, setSettings] = useState<AppSettings>(getSettings());
@@ -90,6 +91,19 @@ export function App() {
     }
   };
 
+  const handleLocalFile = (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    setDownloadNotice(null);
+    try {
+      const localMedia = createLocalFileMedia(file);
+      setMedia(localMedia);
+      setUrl('');
+    } catch (err: any) {
+      setError(err.message || 'No se pudo cargar el archivo local.');
+    }
+  };
+
   const handleDownload = async (stream: StreamOption) => {
     if (!media) return;
     setError(null);
@@ -123,7 +137,7 @@ export function App() {
           thumbnailUrl: media.thumbnailUrl
         });
         setHistory(getHistory());
-        setDownloadNotice('Descarga iniciada directamente en tu navegador debido a restricciones de seguridad CORS del servidor de origen.');
+        setDownloadNotice('Descarga iniciada directamente en tu navegador.');
         return;
       }
       setError(`Error durante la descarga: ${err.message}`);
@@ -149,7 +163,7 @@ export function App() {
       });
     } catch (err: any) {
       if (err?.isBrowserSaveInitiated) {
-        setDownloadNotice('Descarga iniciada directamente en tu navegador debido a restricciones de seguridad CORS del servidor de origen.');
+        setDownloadNotice('Descarga iniciada directamente en tu navegador.');
         return;
       }
       setError(`Error al descargar desde el historial: ${err.message}. Es posible que el enlace temporal haya caducado.`);
@@ -171,9 +185,9 @@ export function App() {
       <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12 sm:py-20 max-w-5xl mx-auto w-full">
         {/* Hero Section */}
         <div className="text-center space-y-4 mb-8 sm:mb-10 max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold tracking-wide uppercase">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold tracking-wide uppercase">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>100% Client-Side • Sin Servidores</span>
+            <span>100% Local • Sin APIs • Sin Servidores</span>
           </div>
 
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7] leading-tight">
@@ -182,25 +196,22 @@ export function App() {
           </h2>
 
           <p className="text-sm sm:text-base text-[#86868b] max-w-lg mx-auto">
-            Pega cualquier enlace para obtener los archivos directamente en tu dispositivo con máxima calidad y cero publicidad.
+            Pega un enlace directo a un archivo o carga un archivo de tu dispositivo. Todo se procesa en tu navegador, sin llamadas externas.
           </p>
 
           {/* Supported platform chips */}
           <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs text-[#86868b]">
             <span className="flex items-center gap-1 bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
-              <Youtube className="w-3.5 h-3.5 text-red-500" /> YouTube
+              <FileVideo className="w-3.5 h-3.5 text-emerald-500" /> Enlaces directos
             </span>
             <span className="flex items-center gap-1 bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
-              <Twitter className="w-3.5 h-3.5 text-sky-400" /> Twitter/X
+              <HardDrive className="w-3.5 h-3.5 text-blue-500" /> Archivos locales
             </span>
             <span className="flex items-center gap-1 bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
-              <Disc className="w-3.5 h-3.5 text-pink-500" /> TikTok
+              <FileVideo className="w-3.5 h-3.5 text-violet-500" /> MP4 / WebM
             </span>
             <span className="flex items-center gap-1 bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
-              <Link2 className="w-3.5 h-3.5 text-orange-500" /> Reddit
-            </span>
-            <span className="bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
-              + Varios más
+              <Music className="w-3.5 h-3.5 text-amber-500" /> MP3 / M4A / WAV
             </span>
           </div>
         </div>
@@ -218,6 +229,26 @@ export function App() {
             setDownloadNotice(null);
           }}
         />
+
+        {/* Local file picker */}
+        <div className="mt-4 flex items-center gap-3">
+          <span className="text-xs text-[#86868b]">o</span>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-[#1d1d1f] dark:text-[#f5f5f7] transition-all"
+          >
+            <HardDrive className="w-3.5 h-3.5" />
+            Cargar archivo local
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*,audio/*"
+            className="hidden"
+            onChange={(e) => handleLocalFile(e.target.files?.[0])}
+          />
+        </div>
 
         {/* Fallback Notice Pill */}
         {downloadNotice && (
@@ -269,7 +300,7 @@ export function App() {
               </div>
               <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Privacidad Total</h3>
               <p className="text-xs text-[#86868b] leading-relaxed">
-                Sin servidores intermediarios de HydraApps. Los datos viajan directo a tu navegador.
+                Cero llamadas a APIs externas. Sin proxies, sin instancias, sin rastreo. Solo tu navegador.
               </p>
             </div>
 
@@ -279,7 +310,7 @@ export function App() {
               </div>
               <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Alta Velocidad</h3>
               <p className="text-xs text-[#86868b] leading-relaxed">
-                Detección inteligente con fallback automático a proxies CORS y redes CDN abiertas.
+                Descarga directa con reanudación por rangos y guardado local inmediato.
               </p>
             </div>
 
@@ -327,7 +358,7 @@ export function App() {
           </a>
         </div>
         <p>
-          HydraDownloader — Parte de la suite multimedia <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">HydraApps</span>. Inspirado en Cobalt &amp; Apple HIG.
+          HydraDownloader — Parte de la suite multimedia <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">HydraApps</span>. 100% local, inspirado en Apple HIG.
         </p>
       </footer>
 

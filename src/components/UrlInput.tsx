@@ -1,5 +1,5 @@
 import { useRef, KeyboardEvent } from 'react';
-import { Clipboard, X, ArrowRight, Loader2, Link2, Youtube, Twitter, Disc, FileVideo } from 'lucide-react';
+import { Clipboard, X, ArrowRight, Loader2, Link2, FileVideo, HardDrive } from 'lucide-react';
 import { detectPlatform } from '../services/extractors';
 
 interface UrlInputProps {
@@ -34,32 +34,11 @@ export function UrlInput({ url, onChange, onSubmit, isLoading, onClear }: UrlInp
 
   const getPlatformBadge = () => {
     switch (platform) {
-      case 'youtube':
+      case 'local':
         return (
-          <span className="flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400 bg-red-500/10 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0" title="YouTube">
-            <Youtube className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
-            <span className="hidden sm:inline">YouTube</span>
-          </span>
-        );
-      case 'twitter':
-        return (
-          <span className="flex items-center gap-1 text-[11px] font-medium text-sky-500 dark:text-sky-400 bg-sky-500/10 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0" title="Twitter / X">
-            <Twitter className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
-            <span className="hidden sm:inline">Twitter / X</span>
-          </span>
-        );
-      case 'tiktok':
-        return (
-          <span className="flex items-center gap-1 text-[11px] font-medium text-pink-600 dark:text-pink-400 bg-pink-500/10 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0" title="TikTok">
-            <Disc className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
-            <span className="hidden sm:inline">TikTok</span>
-          </span>
-        );
-      case 'reddit':
-        return (
-          <span className="flex items-center gap-1 text-[11px] font-medium text-orange-600 dark:text-orange-400 bg-orange-500/10 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0" title="Reddit">
-            <Link2 className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
-            <span className="hidden sm:inline">Reddit</span>
+          <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0" title="Archivo local">
+            <HardDrive className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
+            <span className="hidden sm:inline">Local</span>
           </span>
         );
       case 'direct':
@@ -89,7 +68,7 @@ export function UrlInput({ url, onChange, onSubmit, isLoading, onClear }: UrlInp
           value={url}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Pega el enlace de YouTube, TikTok, Twitter/X, Reddit..."
+          placeholder="Pega un enlace directo .mp4, .webm, .mp3, .m4a, .wav..."
           disabled={isLoading}
           className="flex-1 bg-transparent text-sm sm:text-base text-[#1d1d1f] dark:text-[#f5f5f7] placeholder-[#86868b]/70 outline-none px-1.5 sm:px-2 min-w-0"
         />

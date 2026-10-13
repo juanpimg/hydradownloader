@@ -1,37 +1,20 @@
 import { Extractor, ExtractionResult, PlatformType } from './types';
-import { twitterExtractor } from './twitter';
-import { tiktokExtractor } from './tiktok';
-import { redditExtractor } from './reddit';
-import { youtubeExtractor } from './youtube';
 import { directExtractor } from './direct';
-import { cobaltExtractor } from './cobalt';
 
 export * from './types';
-export * from './cors';
-export * from './cobalt';
+export * from './local';
 
-const extractors: Extractor[] = [
-  directExtractor,
-  twitterExtractor,
-  tiktokExtractor,
-  redditExtractor,
-  youtubeExtractor,
-  cobaltExtractor // Always last as fallback
-];
+const extractors: Extractor[] = [directExtractor];
 
 export function detectPlatform(url: string): PlatformType {
   const clean = url.trim().toLowerCase();
   if (!clean) return 'unknown';
 
-  if (/(?:twitter\.com|x\.com)/.test(clean)) return 'twitter';
-  if (/(?:tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com)/.test(clean)) return 'tiktok';
-  if (/(?:reddit\.com|redd\.it|v\.redd\.it)/.test(clean)) return 'reddit';
-  if (/(?:youtube\.com|youtu\.be)/.test(clean)) return 'youtube';
-  if (/(?:instagram\.com)/.test(clean)) return 'instagram';
-  if (/(?:vimeo\.com)/.test(clean)) return 'vimeo';
+  if (clean.startsWith('blob:') || clean.startsWith('local:')) return 'local';
+
   if (/\.(mp4|webm|mkv|mov|mp3|m4a|wav|aac|ogg|flac|opus)(\?.*)?$/i.test(clean)) return 'direct';
 
-  return 'cobalt';
+  return 'unknown';
 }
 
 export async function extractMedia(url: string, signal?: AbortSignal): Promise<ExtractionResult> {
@@ -40,29 +23,17 @@ export async function extractMedia(url: string, signal?: AbortSignal): Promise<E
     return { success: false, error: 'Por favor, introduce una URL válida.' };
   }
 
-  // Find the most appropriate extractor
   const matchedExtractor = extractors.find((ext) => ext.canHandle(trimmed));
   if (!matchedExtractor) {
-    return { success: false, error: 'No se encontró ningún extractor para esta URL.' };
+    return {
+      success: false,
+      error:
+        'Modo solo-local: pega un enlace directo a un archivo (.mp4, .webm, .mp3, .m4a, .wav, etc.) o carga un archivo desde tu dispositivo. Sin APIs externas, sin proxies, sin servidores.'
+    };
   }
 
-  // Execute extraction
   try {
-    const result = await matchedExtractor.extract(trimmed, signal);
-    if (result.success) {
-      return result;
-    }
-
-    // If a specific extractor failed and wasn't cobalt or youtube (which already uses cobalt as primary), try cobalt as universal fallback
-    if (matchedExtractor !== cobaltExtractor && matchedExtractor !== youtubeExtractor) {
-      console.warn(`[HydraDownloader] Extractor ${matchedExtractor.name} falló, intentando Cobalt fallback...`);
-      const fallbackResult = await cobaltExtractor.extract(trimmed, signal);
-      if (fallbackResult.success) {
-        return fallbackResult;
-      }
-    }
-
-    return result;
+    return await matchedExtractor.extract(trimmed, signal);
   } catch (err: any) {
     return {
       success: false,

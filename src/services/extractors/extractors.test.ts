@@ -1,90 +1,86 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { detectPlatform, extractMedia } from './index';
-import { twitterExtractor } from './twitter';
-import { tiktokExtractor } from './tiktok';
-import { redditExtractor } from './reddit';
-import { youtubeExtractor } from './youtube';
 import { directExtractor } from './direct';
-import { wrapWithProxy } from './cors';
+import { createLocalFileMedia, isLocalMediaFileName } from './local';
 import { sanitizeFilename, formatBytes } from '../downloadManager';
 
-describe('Platform Detector', () => {
-  it('detects YouTube URLs correctly', () => {
-    expect(detectPlatform('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe('youtube');
-    expect(detectPlatform('https://youtu.be/dQw4w9WgXcQ')).toBe('youtube');
-    expect(detectPlatform('https://youtube.com/shorts/3l8v_k-X4g4')).toBe('youtube');
-    expect(detectPlatform('https://www.youtube.com/embed/dQw4w9WgXcQ')).toBe('youtube');
-  });
-
-  it('detects Twitter/X URLs correctly', () => {
-    expect(detectPlatform('https://twitter.com/user/status/1234567890')).toBe('twitter');
-    expect(detectPlatform('https://x.com/user/status/1234567890')).toBe('twitter');
-  });
-
-  it('detects TikTok URLs correctly', () => {
-    expect(detectPlatform('https://www.tiktok.com/@user/video/7123456789012345678')).toBe('tiktok');
-    expect(detectPlatform('https://vm.tiktok.com/ZM8ABCDEF/')).toBe('tiktok');
-  });
-
-  it('detects Reddit URLs correctly', () => {
-    expect(detectPlatform('https://www.reddit.com/r/videos/comments/abc123/cool_video/')).toBe('reddit');
-    expect(detectPlatform('https://redd.it/abc123')).toBe('reddit');
-  });
-
+describe('Platform Detector (solo-local)', () => {
   it('detects direct media files correctly', () => {
     expect(detectPlatform('https://example.com/video.mp4')).toBe('direct');
     expect(detectPlatform('https://example.com/audio.mp3?token=123')).toBe('direct');
   });
 
-  it('falls back to cobalt for other URLs', () => {
-    expect(detectPlatform('https://vimeo.com/123456')).toBe('vimeo');
-    expect(detectPlatform('https://unknown-service.com/media')).toBe('cobalt');
+  it('detects local blob URLs correctly', () => {
+    expect(detectPlatform('blob:https://example.com/uuid')).toBe('local');
+  });
+
+  it('returns unknown for platform pages (sin APIs externas)', () => {
+    expect(detectPlatform('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe('unknown');
+    expect(detectPlatform('https://twitter.com/user/status/1234567890')).toBe('unknown');
+  });
+
+  it('returns unknown for unsupported URLs', () => {
+    expect(detectPlatform('https://unknown-service.com/media')).toBe('unknown');
+    expect(detectPlatform('https://vimeo.com/123456')).toBe('unknown');
   });
 });
 
-describe('Extractor Handler Matching', () => {
-  it('twitterExtractor handles twitter and x.com URLs', () => {
-    expect(twitterExtractor.canHandle('https://x.com/elonmusk/status/123456')).toBe(true);
-    expect(twitterExtractor.canHandle('https://twitter.com/nasa/status/987654')).toBe(true);
-    expect(twitterExtractor.canHandle('https://youtube.com')).toBe(false);
-  });
-
-  it('tiktokExtractor handles standard and short links', () => {
-    expect(tiktokExtractor.canHandle('https://www.tiktok.com/@test/video/123')).toBe(true);
-    expect(tiktokExtractor.canHandle('https://vm.tiktok.com/ZM1234/')).toBe(true);
-    expect(tiktokExtractor.canHandle('https://reddit.com')).toBe(false);
-  });
-
-  it('redditExtractor handles reddit links', () => {
-    expect(redditExtractor.canHandle('https://www.reddit.com/r/funny/comments/123/test/')).toBe(true);
-    expect(redditExtractor.canHandle('https://redd.it/123')).toBe(true);
-    expect(redditExtractor.canHandle('https://twitter.com')).toBe(false);
-  });
-
-  it('youtubeExtractor handles youtube watch and short urls', () => {
-    expect(youtubeExtractor.canHandle('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true);
-    expect(youtubeExtractor.canHandle('https://youtu.be/dQw4w9WgXcQ')).toBe(true);
-    expect(youtubeExtractor.canHandle('https://youtube.com/shorts/dQw4w9WgXcQ')).toBe(true);
-    expect(youtubeExtractor.canHandle('https://youtube.com/embed/dQw4w9WgXcQ')).toBe(true);
-    expect(youtubeExtractor.canHandle('https://tiktok.com')).toBe(false);
-  });
-
+describe('Extractor Handler Matching (solo-local)', () => {
   it('directExtractor handles media file URLs', () => {
     expect(directExtractor.canHandle('https://example.com/test.mp4')).toBe(true);
     expect(directExtractor.canHandle('https://example.com/sound.mp3')).toBe(true);
+    expect(directExtractor.canHandle('blob:https://example.com/uuid')).toBe(true);
     expect(directExtractor.canHandle('https://example.com/page.html')).toBe(false);
+  });
+
+  it('directExtractor rejects platform pages', () => {
+    expect(directExtractor.canHandle('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(false);
+    expect(directExtractor.canHandle('https://x.com/user/status/123')).toBe(false);
   });
 });
 
-describe('CORS Proxy Helper', () => {
-  it('wraps target URL with codetabs by default', () => {
-    const wrapped = wrapWithProxy('https://example.com/api');
-    expect(wrapped).toContain('https://api.codetabs.com/v1/proxy?quest=https%3A%2F%2Fexample.com%2Fapi');
+describe('extractMedia (solo-local)', () => {
+  it('extracts direct media without external APIs', async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = (async () => ({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-length': '1024' })
+      })) as unknown as typeof fetch;
+
+      const result = await extractMedia('https://example.com/video.mp4');
+      expect(result.success).toBe(true);
+      expect(result.data?.platform).toBe('direct');
+      expect(result.data?.extractedVia).toMatch(/sin APIs/i);
+      expect(result.data?.streams.length).toBeGreaterThan(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
-  it('returns untouched URL when direct is specified', () => {
-    const direct = wrapWithProxy('https://example.com/api', 'direct');
-    expect(direct).toBe('https://example.com/api');
+  it('rejects platform URLs with local-only guidance', async () => {
+    const result = await extractMedia('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/solo-local/i);
+  });
+});
+
+describe('Local file handling (sin red)', () => {
+  it('detects local media file names', () => {
+    expect(isLocalMediaFileName('video.mp4')).toBe(true);
+    expect(isLocalMediaFileName('song.mp3')).toBe(true);
+    expect(isLocalMediaFileName('doc.pdf')).toBe(false);
+  });
+
+  it('creates local media metadata without network', () => {
+    const file = new File([new Uint8Array([1, 2, 3])], 'test-video.mp4', { type: 'video/mp4' });
+    const media = createLocalFileMedia(file);
+    expect(media.platform).toBe('local');
+    expect(media.title).toBe('test-video.mp4');
+    expect(media.streams).toHaveLength(1);
+    expect(media.extractedVia).toMatch(/sin red/i);
+    expect(media.streams[0].url.startsWith('blob:')).toBe(true);
   });
 });
 
@@ -102,23 +98,7 @@ describe('Download Manager Helpers', () => {
   });
 });
 
-describe('YouTube Extractor Live Smoke Test', () => {
-  it('extracts metadata and stream options for a YouTube video', async () => {
-    const result = await extractMedia('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
-    expect(result.success).toBe(true);
-    expect(result.data).toBeDefined();
-    expect(result.data?.platform).toBe('youtube');
-    expect(result.data?.title).toBeTruthy();
-    expect(result.data?.thumbnailUrl).toBeTruthy();
-    expect(result.data?.streams.length).toBeGreaterThan(0);
-    expect(result.data?.streams[0].url).toBeTruthy();
-    // Critical: Ensure streams are actual downloadable files, NEVER a redirect back to youtube watch page!
-    expect(result.data?.streams[0].url).not.toMatch(/youtube\.com\/watch/);
-    expect(result.data?.streams[0].url).not.toMatch(/youtu\.be\//);
-  }, 12000);
-});
-
-describe('Storage & Settings Unification', () => {
+describe('Storage & Settings (solo-local)', () => {
   const originalLocalStorage = globalThis.localStorage;
   let mockStorage: Record<string, string> = {};
 
@@ -145,130 +125,24 @@ describe('Storage & Settings Unification', () => {
     });
   });
 
-  it('defaults Cobalt instance to rue-cobalt.xenon.zone', async () => {
-    const { getSettings } = await import('../storage');
+  it('defaults to local-only settings without remote keys', async () => {
+    const { getSettings, DEFAULT_SETTINGS } = await import('../storage');
     const settings = getSettings();
-    expect(settings.cobaltInstance).toBe('https://rue-cobalt.xenon.zone');
+    expect(settings.preferredMode).toBe('video');
+    expect((settings as any).cobaltInstance).toBeUndefined();
+    expect((settings as any).customCorsProxy).toBeUndefined();
+    expect(DEFAULT_SETTINGS).not.toHaveProperty('cobaltInstance');
   });
 
-  it('automatically migrates deprecated api.cobalt.tools to rue-cobalt.xenon.zone', async () => {
+  it('strips legacy remote keys on load', async () => {
     const { getSettings, SETTINGS_KEY } = await import('../storage');
-    mockStorage[SETTINGS_KEY] = JSON.stringify({ cobaltInstance: 'https://api.cobalt.tools' });
+    mockStorage[SETTINGS_KEY] = JSON.stringify({
+      preferredMode: 'audio',
+      cobaltInstance: 'https://rue-cobalt.xenon.zone',
+      customCorsProxy: 'https://proxy.example.com'
+    });
     const settings = getSettings();
-    expect(settings.cobaltInstance).toBe('https://rue-cobalt.xenon.zone');
-  });
-
-  it('getCustomCobaltInstance respects unified settings key hydra_downloader_settings', async () => {
-    const { getCustomCobaltInstance, setCustomCobaltInstance } = await import('./cobalt');
-    const { getSettings } = await import('../storage');
-    setCustomCobaltInstance('https://custom-cobalt.example.com/');
-    expect(getCustomCobaltInstance()).toBe('https://custom-cobalt.example.com');
-    expect(getSettings().cobaltInstance).toBe('https://custom-cobalt.example.com');
-  });
-
-  it('getCustomCorsProxy respects unified settings key hydra_downloader_settings', async () => {
-    const { getCustomCorsProxy, setCustomCorsProxy } = await import('./cors');
-    const { getSettings } = await import('../storage');
-    setCustomCorsProxy('https://proxy.example.com/?url={url} ');
-    expect(getCustomCorsProxy()).toBe('https://proxy.example.com/?url={url}');
-    expect(getSettings().customCorsProxy).toBe('https://proxy.example.com/?url={url}');
-  });
-
-  it('migrates legacy storage keys to hydra_downloader_settings when settings key is absent', async () => {
-    const { getSettings, SETTINGS_KEY } = await import('../storage');
-    mockStorage['hydra_cobalt_instance'] = 'https://legacy-cobalt.xenon.zone';
-    mockStorage['hydra_cors_proxy'] = 'https://legacy-proxy.com/?url={url}';
-    delete mockStorage[SETTINGS_KEY];
-
-    const settings = getSettings();
-    expect(settings.cobaltInstance).toBe('https://legacy-cobalt.xenon.zone');
-    expect(settings.customCorsProxy).toBe('https://legacy-proxy.com/?url={url}');
-    expect(mockStorage[SETTINGS_KEY]).toBeDefined();
-  });
-
-  it('migrates legacy api.cobalt.tools even with trailing slash or http protocol', async () => {
-    const { getSettings, SETTINGS_KEY } = await import('../storage');
-    mockStorage['hydra_cobalt_instance'] = 'https://api.cobalt.tools/';
-    delete mockStorage[SETTINGS_KEY];
-
-    const settings = getSettings();
-    expect(settings.cobaltInstance).toBe('https://rue-cobalt.xenon.zone');
-  });
-
-  it('wrapWithProxy correctly handles query prefixes without inserting spurious slashes', async () => {
-    const { wrapWithProxy, setCustomCorsProxy } = await import('./cors');
-    
-    // Query param ending with =
-    setCustomCorsProxy('https://my-proxy.com/?url=');
-    expect(wrapWithProxy('https://example.com/video.mp4')).toBe('https://my-proxy.com/?url=https%3A%2F%2Fexample.com%2Fvideo.mp4');
-
-    // Query param ending with ?
-    setCustomCorsProxy('https://my-proxy.com/?');
-    expect(wrapWithProxy('https://example.com/video.mp4')).toBe('https://my-proxy.com/?https%3A%2F%2Fexample.com%2Fvideo.mp4');
-
-    // Path proxy ending with multiple slashes
-    setCustomCorsProxy('https://cors-anywhere.herokuapp.com///');
-    expect(wrapWithProxy('https://example.com/video.mp4')).toBe('https://cors-anywhere.herokuapp.com/https%3A%2F%2Fexample.com%2Fvideo.mp4');
-
-    // Path proxy without trailing slash
-    setCustomCorsProxy('https://cors-anywhere.herokuapp.com');
-    expect(wrapWithProxy('https://example.com/video.mp4')).toBe('https://cors-anywhere.herokuapp.com/https%3A%2F%2Fexample.com%2Fvideo.mp4');
-
-    // Reset proxy
-    setCustomCorsProxy('');
+    expect(settings.preferredMode).toBe('audio');
+    expect((settings as any).cobaltInstance).toBeUndefined();
   });
 });
-
-describe('Twitter Extractor Format Accuracy', () => {
-  it('maps video accurately and never exposes video MP4 URLs as .m4a audio', async () => {
-    const originalFetch = globalThis.fetch;
-    try {
-      globalThis.fetch = async (url: any) => {
-        if (typeof url === 'string' && url.includes('api.fxtwitter.com')) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({
-              code: 200,
-              message: 'OK',
-              tweet: {
-                id: '1234567890',
-                text: 'Test tweet with video',
-                author: { name: 'Tester', screen_name: 'tester' },
-                media: {
-                  videos: [
-                    {
-                      type: 'video',
-                      url: 'https://video.twimg.com/amplify_video/123/vid/avc1/720x1280/video.mp4',
-                      duration: 15,
-                      width: 720,
-                      height: 1280
-                    }
-                  ]
-                }
-              }
-            })
-          } as unknown as Response;
-        }
-        return { ok: false, status: 404 } as unknown as Response;
-      };
-
-      const result = await twitterExtractor.extract('https://x.com/tester/status/1234567890');
-      expect(result.success).toBe(true);
-      expect(result.data?.streams.length).toBeGreaterThan(0);
-
-      // Verify no stream presents an MP4 video URL as an .m4a audio stream
-      for (const s of result.data!.streams) {
-        if (s.format === 'm4a') {
-          expect(s.url).not.toMatch(/\.mp4(\?|$)/i);
-        }
-        if (s.type === 'video') {
-          expect(s.format).toBe('mp4');
-        }
-      }
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-  });
-});
-

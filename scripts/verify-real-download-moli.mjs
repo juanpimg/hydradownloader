@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Automated End-to-End Real Runtime Verification with Moli Headless Browser
-// Verifies YouTube extraction, failover, 0-byte rejection, and real media bytes download (>500 KB)
+// Moli Headless Browser Runtime Verification — MODO SOLO-LOCAL
+// Sin APIs externas, sin proxies, sin Cobalt/Invidious/TikWM/FxTwitter.
+// Verifica: rechazo de URLs de plataforma, extracción directa y descarga 100% local.
 
 import { execSync } from 'node:child_process';
 import http from 'node:http';
@@ -9,6 +10,20 @@ import path from 'node:path';
 
 const MOLI_BIN = process.env.MOLI_BIN || '/home/jp/.local/bin/moli';
 const APP_URL = process.env.APP_URL || 'http://localhost:5177';
+
+const FORBIDDEN_HOSTS = [
+  'api.fxtwitter.com',
+  'tikwm.com',
+  'cobalt',
+  'invidious',
+  'piped',
+  'noembed.com',
+  'youtube.com/oembed',
+  'codetabs.com',
+  'allorigins.win',
+  'api.invidious.io',
+  'youtubei'
+];
 
 function checkHttp(url) {
   return new Promise((resolve) => {
@@ -21,13 +36,8 @@ function checkHttp(url) {
 }
 
 async function runMoliEval(jsCode) {
-  const encoded = Buffer.from(jsCode, 'utf8').toString('base64');
-  const evalExpression = `eval(new TextDecoder().decode(Uint8Array.from(atob("${encoded}"), c => c.charCodeAt(0))))`;
-  
-  // Write to temporary file to avoid shell argument length/escaping issues
   const tmpScript = path.join('/tmp', `moli_eval_${Date.now()}_${Math.random().toString(36).slice(2)}.js`);
   fs.writeFileSync(tmpScript, jsCode, 'utf8');
-
   try {
     const stdout = execSync(
       `"${MOLI_BIN}" fetch "${APP_URL}" --eval-file "${tmpScript}"`,
@@ -41,7 +51,7 @@ async function runMoliEval(jsCode) {
 
 async function main() {
   console.log('======================================================================');
-  console.log('HydraDownloader: Moli Headless Browser Runtime Verification');
+  console.log('HydraDownloader: Moli Runtime Verification — MODO SOLO-LOCAL');
   console.log('======================================================================\n');
 
   console.log(`Checking Moli binary at ${MOLI_BIN}...`);
@@ -54,233 +64,114 @@ async function main() {
   console.log(`Checking application server at ${APP_URL}...`);
   const isUp = await checkHttp(APP_URL);
   if (!isUp) {
-    throw new Error(`Application server at ${APP_URL} is not responding. Ensure dev server is running on port 5177.`);
+    throw new Error(`Application server at ${APP_URL} is not responding.`);
   }
   console.log(`Application server is reachable on ${APP_URL}.\n`);
 
-  // --- Test 1: In-browser Tunnel Validation (probeTunnelUrl) ---
-  console.log('[Test 1/4] Verifying probeTunnelUrl strictly rejects negative/empty tunnels...');
+  // --- Test 1: Platform URLs rejected with local-only guidance, zero external calls ---
+  console.log('[Test 1/3] Verifying platform URLs are rejected WITHOUT external API calls...');
   const test1Code = `
     (async () => {
-      const { probeTunnelUrl } = await import('/src/services/extractors/cobalt.ts');
-
-      // Test negative estimated-content-length (-1)
-      const fakeNegativeUrl = 'data:application/json,{"fake":1}';
-      // Mock fetch in page context
+      const { extractMedia } = await import('/src/services/extractors/index.ts');
+      const forbidden = ${JSON.stringify(FORBIDDEN_HOSTS)};
+      const contacted = [];
       const origFetch = window.fetch;
+      window.fetch = async (url, init) => {
+        contacted.push(String(url));
+        throw new Error('network disabled in test');
+      };
       try {
-        window.fetch = async (url, opts) => {
-          return new Response('', {
-            status: 200,
-            headers: new Headers({ 'estimated-content-length': '-1' })
-          });
-        };
-        const resNegative = await probeTunnelUrl('https://example.com/stream-neg.mp4');
-
-        window.fetch = async (url, opts) => {
-          return new Response('', {
-            status: 200,
-            headers: new Headers({ 'content-length': '0' })
-          });
-        };
-        const resZeroCl = await probeTunnelUrl('https://example.com/stream-zero.mp4');
-
-        window.fetch = async (url, opts) => {
-          return new Response('', {
-            status: 200,
-            headers: new Headers({ 'estimated-content-length': '0' })
-          });
-        };
-        const resZeroEcl = await probeTunnelUrl('https://example.com/stream-zero-ecl.mp4');
-
+        const urls = [
+          'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          'https://x.com/user/status/1234567890',
+          'https://www.tiktok.com/@user/video/1234567890123456789'
+        ];
+        const results = [];
+        for (const u of urls) {
+          const r = await extractMedia(u);
+          results.push({ url: u, success: r.success, error: r.error });
+        }
+        const bad = contacted.filter((u) => forbidden.some((f) => u.includes(f)));
         return JSON.stringify({
-          negativeEclRejected: resNegative === false,
-          zeroClRejected: resZeroCl === false,
-          zeroEclRejected: resZeroEcl === false
+          allRejected: results.every((r) => r.success === false && /solo-local/i.test(r.error || '')),
+          externalApiCalls: contacted.length,
+          forbiddenHits: bad,
+          passed: results.every((r) => r.success === false) && bad.length === 0
         });
       } finally {
         window.fetch = origFetch;
       }
     })()
   `;
-
-  const test1ResultRaw = await runMoliEval(test1Code);
-  const test1Result = JSON.parse(test1ResultRaw);
+  const test1Result = JSON.parse(await runMoliEval(test1Code));
   console.log('Result:', test1Result);
-  if (!test1Result.negativeEclRejected || !test1Result.zeroClRejected || !test1Result.zeroEclRejected) {
-    throw new Error(`Test 1 Failed: probeTunnelUrl did not reject all empty/negative tunnel cases: ${JSON.stringify(test1Result)}`);
+  if (!test1Result.passed) {
+    throw new Error(`Test 1 Failed: ${JSON.stringify(test1Result)}`);
   }
-  console.log('✓ Test 1 Passed: probeTunnelUrl strictly rejects empty/negative tunnels.\n');
+  console.log('✓ Test 1 Passed: platform URLs rejected locally, 0 external API calls.\n');
 
-  // --- Test 2: In-browser 0-Byte Download Rejection in DownloadManager ---
-  console.log('[Test 2/4] Verifying downloadStream rejects 0-byte streams without saving...');
+  // --- Test 2: Direct link extraction works (mocked HEAD, no third-party API) ---
+  console.log('[Test 2/3] Verifying direct-link extraction is fully local...');
   const test2Code = `
     (async () => {
-      const { downloadStream } = await import('/src/services/downloadManager.ts');
+      const { extractMedia } = await import('/src/services/extractors/index.ts');
+      const forbidden = ${JSON.stringify(FORBIDDEN_HOSTS)};
+      const contacted = [];
       const origFetch = window.fetch;
-      let browserSaveTriggered = false;
-
-      // Mock anchor element click
-      const origCreateElement = document.createElement.bind(document);
-      document.createElement = function(tag) {
-        const el = origCreateElement(tag);
-        if (tag.toLowerCase() === 'a') {
-          el.click = () => { browserSaveTriggered = true; };
-        }
-        return el;
+      window.fetch = async (url, init) => {
+        contacted.push(String(url));
+        return new Response('', { status: 200, headers: new Headers({ 'content-length': '1024' }) });
       };
-
       try {
-        window.fetch = async () => {
-          return new Response('', {
-            status: 200,
-            headers: new Headers({ 'estimated-content-length': '-1' })
-          });
-        };
-
-        let threwError = false;
-        let errorMessage = '';
-        try {
-          await downloadStream(
-            { id: '1', label: 'Test', quality: '1080', format: 'mp4', type: 'video', url: 'https://example.com/fake.mp4' },
-            'Test_Video'
-          );
-        } catch (e) {
-          threwError = true;
-          errorMessage = e.message;
-        }
-
+        const r = await extractMedia('https://example.com/video.mp4');
+        const bad = contacted.filter((u) => forbidden.some((f) => u.includes(f)));
         return JSON.stringify({
-          threwError,
-          errorMessage,
-          browserSaveTriggered,
-          passed: threwError && !browserSaveTriggered && errorMessage.includes('0 bytes')
+          success: r.success,
+          platform: r.data?.platform,
+          extractedVia: r.data?.extractedVia,
+          contacted,
+          forbiddenHits: bad,
+          passed: r.success === true && bad.length === 0 && /sin APIs/i.test(r.data?.extractedVia || '')
         });
       } finally {
         window.fetch = origFetch;
-        document.createElement = origCreateElement;
       }
     })()
   `;
-
-  const test2ResultRaw = await runMoliEval(test2Code);
-  const test2Result = JSON.parse(test2ResultRaw);
+  const test2Result = JSON.parse(await runMoliEval(test2Code));
   console.log('Result:', test2Result);
   if (!test2Result.passed) {
-    throw new Error(`Test 2 Failed: downloadStream did not safely reject 0-byte stream: ${JSON.stringify(test2Result)}`);
+    throw new Error(`Test 2 Failed: ${JSON.stringify(test2Result)}`);
   }
-  console.log('✓ Test 2 Passed: downloadStream rejected 0-byte response and never triggered browser save.\n');
+  console.log('✓ Test 2 Passed: direct extraction local, no third-party hosts contacted.\n');
 
-  // --- Test 3: Candidate Prioritization & Instance Failover in Cobalt Extractor ---
-  console.log('[Test 3/4] Verifying Cobalt candidate prioritization and failover across instances...');
+  // --- Test 3: Real 100% local download from in-page generated bytes (zero network) ---
+  console.log('[Test 3/3] Verifying 100% local download (generated bytes, no network)...');
   const test3Code = `
     (async () => {
-      const { cobaltExtractor, getCandidateCobaltInstances, setCustomCobaltInstance } = await import('/src/services/extractors/cobalt.ts');
-      const origFetch = window.fetch;
-
-      // Verify custom instance prioritization in candidate pool
-      setCustomCobaltInstance('https://my-custom.cobalt.test/');
-      const candidates = getCandidateCobaltInstances();
-      const customPrioritized = candidates[0] === 'https://my-custom.cobalt.test';
-
-      try {
-        // Mock first instance returning tunnel with estimated-content-length: -1
-        // Mock second instance returning valid tunnel with positive bytes
-        let callCount = 0;
-        window.fetch = async (url, init) => {
-          const urlStr = String(url);
-          if (init?.method === 'POST') {
-            callCount++;
-            return new Response(JSON.stringify({
-              status: 'tunnel',
-              url: 'https://tunnel-' + callCount + '.example.com/media.mp4'
-            }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-          }
-
-          if (urlStr.includes('tunnel-1')) {
-            // First tunnel is empty/blocked
-            return new Response('', {
-              status: 200,
-              headers: new Headers({ 'estimated-content-length': '-1' })
-            });
-          }
-
-          if (urlStr.includes('tunnel-2')) {
-            // Second tunnel is healthy
-            return new Response('', {
-              status: 200,
-              headers: new Headers({ 'estimated-content-length': '8388608' })
-            });
-          }
-
-          return new Response('Not found', { status: 404 });
-        };
-
-        const result = await cobaltExtractor.extract('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
-        return JSON.stringify({
-          customPrioritized,
-          success: result.success,
-          failoverOccurred: callCount >= 2,
-          streamUrl: result.data?.streams?.[0]?.url,
-          passed: customPrioritized && result.success === true && callCount >= 2 && result.data?.streams?.[0]?.url?.includes('tunnel-2')
-        });
-      } finally {
-        window.fetch = origFetch;
-      }
-    })()
-  `;
-
-  const test3ResultRaw = await runMoliEval(test3Code);
-  const test3Result = JSON.parse(test3ResultRaw);
-  console.log('Result:', test3Result);
-  if (!test3Result.passed) {
-    throw new Error(`Test 3 Failed: Extractor failover or candidate prioritization failed: ${JSON.stringify(test3Result)}`);
-  }
-  console.log('✓ Test 3 Passed: Cobalt extractor prioritized custom instance and failed over to next healthy instance.\n');
-
-  // --- Test 4: Real End-to-End Extraction & Download of Real YouTube Media Bytes ---
-  console.log('[Test 4/4] Executing real YouTube download transfer in Moli browser session...');
-  console.log('Target video: "Me at the zoo" (https://www.youtube.com/watch?v=jNQXAC9IVRw)');
-
-  const test4Code = `
-    (async () => {
-      const { extractMedia } = await import('/src/services/extractors/index.ts');
+      const { createLocalFileMedia } = await import('/src/services/extractors/local.ts');
       const { downloadStream } = await import('/src/services/downloadManager.ts');
 
-      const url = 'https://www.youtube.com/watch?v=jNQXAC9IVRw';
-      const extRes = await extractMedia(url);
-
-      if (!extRes.success || !extRes.data || !extRes.data.streams.length) {
-        return JSON.stringify({
-          success: false,
-          error: 'Extraction failed: ' + (extRes.error || 'No streams returned')
-        });
-      }
-
-      const stream = extRes.data.streams[0];
-      const title = extRes.data.title;
+      // 256 KB of deterministic local bytes
+      const size = 262144;
+      const bytes = new Uint8Array(size);
+      for (let i = 0; i < size; i++) bytes[i] = i % 256;
+      const file = new File([bytes], 'prueba-local.mp4', { type: 'video/mp4' });
+      const media = createLocalFileMedia(file);
+      const stream = media.streams[0];
 
       let totalReceived = 0;
       let finalState = null;
-      const progressUpdates = [];
-
-      // Intercept URL.createObjectURL to capture the real downloaded media blob
       const origCreateObjectURL = window.URL.createObjectURL;
       let capturedBlob = null;
       window.URL.createObjectURL = (blob) => {
         capturedBlob = blob;
         return origCreateObjectURL(blob);
       };
-
       try {
-        await downloadStream(stream, title, (state) => {
+        await downloadStream(stream, media.title, (state) => {
           finalState = state;
           totalReceived = state.bytesReceived;
-          progressUpdates.push({
-            pct: state.progress,
-            bytes: state.bytesReceived,
-            speed: state.speed
-          });
         });
       } finally {
         window.URL.createObjectURL = origCreateObjectURL;
@@ -288,71 +179,46 @@ async function main() {
 
       let mediaBase64 = '';
       if (capturedBlob) {
-        const arrayBuffer = await capturedBlob.arrayBuffer();
-        const uint8 = new Uint8Array(arrayBuffer);
+        const buf = await capturedBlob.arrayBuffer();
+        const u8 = new Uint8Array(buf);
         let binary = '';
-        const chunkSize = 16384;
-        for (let i = 0; i < uint8.length; i += chunkSize) {
-          const chunk = uint8.subarray(i, i + chunkSize);
-          binary += String.fromCharCode.apply(null, chunk);
+        const chunk = 16384;
+        for (let i = 0; i < u8.length; i += chunk) {
+          binary += String.fromCharCode.apply(null, u8.subarray(i, i + chunk));
         }
         mediaBase64 = btoa(binary);
       }
 
       return JSON.stringify({
-        success: true,
-        title,
-        platform: extRes.data.platform,
-        extractedVia: extRes.data.extractedVia,
-        streamUrl: stream.url,
-        streamFormat: stream.format,
+        platform: media.platform,
+        extractedVia: media.extractedVia,
         totalBytesReceived: totalReceived,
-        progressUpdatesCount: progressUpdates.length,
         finalProgress: finalState?.progress,
         finalSpeed: finalState?.speed,
         mediaBase64,
-        isSuccess: totalReceived > 500000 && finalState?.speed === 'Completado'
+        isSuccess: totalReceived === size && finalState?.speed === 'Completado'
       });
     })()
   `;
+  const test3Result = JSON.parse(await runMoliEval(test3Code));
+  console.log('Local Download Summary:');
+  console.log('  Platform:             ', test3Result.platform);
+  console.log('  Extracted Via:        ', test3Result.extractedVia);
+  console.log('  Total Bytes Received: ', test3Result.totalBytesReceived);
+  console.log('  Final Progress:       ', test3Result.finalProgress, '%');
+  console.log('  Final State Speed:    ', test3Result.finalSpeed);
 
-  const test4ResultRaw = await runMoliEval(test4Code);
-  const test4Result = JSON.parse(test4ResultRaw);
-  console.log('Real Runtime Download Summary:');
-  console.log('  Video Title:          ', test4Result.title);
-  console.log('  Platform:             ', test4Result.platform);
-  console.log('  Extracted Via:        ', test4Result.extractedVia);
-  console.log('  Format:               ', test4Result.streamFormat);
-  console.log('  Total Bytes Received: ', test4Result.totalBytesReceived, `(${Math.round(test4Result.totalBytesReceived / 1024)} KB)`);
-  console.log('  Progress Updates:     ', test4Result.progressUpdatesCount);
-  console.log('  Final Progress:       ', test4Result.finalProgress, '%');
-  console.log('  Final State Speed:    ', test4Result.finalSpeed);
-
-  if (!test4Result.isSuccess || test4Result.totalBytesReceived <= 500000) {
-    throw new Error(`Test 4 Failed: Expected >500 KB received, got ${test4Result.totalBytesReceived} bytes. Result: ${JSON.stringify(test4Result)}`);
+  if (!test3Result.isSuccess) {
+    throw new Error(`Test 3 Failed: ${JSON.stringify({ ...test3Result, mediaBase64: test3Result.mediaBase64?.length })}`);
   }
-
-  if (!test4Result.mediaBase64) {
-    throw new Error('Test 4 Failed: No real media bytes returned from browser session.');
-  }
-
-  // Save REAL media artifact file to disk to verify real media file exists
-  const artifactPath = path.join('/tmp', 'moli_verified_download.mp4');
-  const realMediaBuffer = Buffer.from(test4Result.mediaBase64, 'base64');
-  fs.writeFileSync(artifactPath, realMediaBuffer);
+  const artifactPath = path.join('/tmp', 'moli_verified_local_download.mp4');
+  fs.writeFileSync(artifactPath, Buffer.from(test3Result.mediaBase64, 'base64'));
   const stat = fs.statSync(artifactPath);
-  console.log(`✓ Real media file artifact verified on disk at ${artifactPath} (${stat.size} bytes).`);
-
-  // Verify MP4 magic box header at offset 4 ('ftyp')
-  const magic = realMediaBuffer.subarray(4, 8).toString('ascii');
-  if (magic !== 'ftyp') {
-    throw new Error(`Real media verification failed: expected MP4 'ftyp' magic signature, got '${magic}'`);
-  }
-  console.log(`✓ Verified valid MP4 container structure ('${magic}' box signature at offset 4).`);
-  console.log('✓ Test 4 Passed: Real media bytes transferred (>500 KB, valid MP4 binary on disk).\n');
+  console.log(`✓ Local artifact verified on disk at ${artifactPath} (${stat.size} bytes).`);
+  console.log('✓ Test 3 Passed: 256 KB transferred 100% locally, zero network.\n');
 
   console.log('======================================================================');
-  console.log('ALL MOLI RUNTIME BROWSER VERIFICATION TESTS PASSED SUCCESSFULLY! (4/4)');
+  console.log('ALL MOLI LOCAL-ONLY VERIFICATION TESTS PASSED SUCCESSFULLY! (3/3)');
   console.log('======================================================================');
 }
 

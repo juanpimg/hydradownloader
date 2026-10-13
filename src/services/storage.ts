@@ -17,8 +17,6 @@ export interface AppSettings {
   defaultQuality: string;
   defaultAudioFormat: 'mp3' | 'm4a';
   theme: 'system' | 'dark' | 'light';
-  cobaltInstance: string;
-  customCorsProxy: string;
 }
 
 const HISTORY_KEY = 'hydra_downloader_history';
@@ -28,9 +26,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   preferredMode: 'video',
   defaultQuality: 'best',
   defaultAudioFormat: 'mp3',
-  theme: 'system',
-  cobaltInstance: 'https://rue-cobalt.xenon.zone',
-  customCorsProxy: ''
+  theme: 'system'
 };
 
 export function getHistory(): HistoryItem[] {
@@ -85,26 +81,12 @@ export function getSettings(): AppSettings {
     }
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) {
-      // Migrate legacy keys if they exist
-      const legacyCobalt = localStorage.getItem('hydra_cobalt_instance');
-      const legacyCors = localStorage.getItem('hydra_cors_proxy');
-      if (legacyCobalt || legacyCors) {
-        const migrated: AppSettings = {
-          ...DEFAULT_SETTINGS,
-          ...(legacyCobalt && !legacyCobalt.includes('api.cobalt.tools') ? { cobaltInstance: legacyCobalt.trim().replace(/\/+$/, '') } : {}),
-          ...(legacyCors ? { customCorsProxy: legacyCors.trim() } : {})
-        };
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(migrated));
-        memorySettings = migrated;
-        return migrated;
-      }
       return memorySettings;
     }
     const parsed = JSON.parse(raw);
-    // Auto-migrate away from deprecated api.cobalt.tools
-    if (!parsed.cobaltInstance || parsed.cobaltInstance.includes('api.cobalt.tools')) {
-      parsed.cobaltInstance = DEFAULT_SETTINGS.cobaltInstance;
-    }
+    // Strip legacy remote-service keys (modo solo-local)
+    delete parsed.cobaltInstance;
+    delete parsed.customCorsProxy;
     const result = { ...DEFAULT_SETTINGS, ...parsed };
     memorySettings = result;
     return result;
@@ -120,13 +102,6 @@ export function saveSettings(settings: Partial<AppSettings>): AppSettings {
     memorySettings = updated;
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
-      // Keep legacy keys in sync for external or backward compatibility
-      if (updated.cobaltInstance) {
-        localStorage.setItem('hydra_cobalt_instance', updated.cobaltInstance);
-      }
-      if (typeof updated.customCorsProxy === 'string') {
-        localStorage.setItem('hydra_cors_proxy', updated.customCorsProxy);
-      }
     }
     return updated;
   } catch {

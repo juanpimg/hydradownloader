@@ -1,13 +1,4 @@
-export type PlatformType =
-  | 'twitter'
-  | 'tiktok'
-  | 'reddit'
-  | 'youtube'
-  | 'instagram'
-  | 'vimeo'
-  | 'direct'
-  | 'cobalt'
-  | 'unknown';
+export type PlatformType = 'direct' | 'local' | 'unknown';
 
 export type MediaType = 'video' | 'audio' | 'image';
 
@@ -55,7 +46,7 @@ export interface MediaMetadata {
   thumbnailUrl?: string;
   duration?: number; // seconds
   streams: StreamOption[];
-  extractedVia: string; // e.g. "FxTwitter API", "TikWM", "Cobalt Fallback"
+  extractedVia: string; // e.g. "Enlace Directo Local", "Archivo Local"
 }
 
 export interface ExtractionResult {
