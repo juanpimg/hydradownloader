@@ -59,30 +59,6 @@ con una PoC reproducible. Todo el análisis está en
 
 ---
 
-## 🚀 Inicio Rápido
-
-```bash
-# Entrar a la carpeta
-cd apps/hydra-downloader
-
-# Instalar dependencias
-npm install
-
-# Iniciar servidor de desarrollo en http://localhost:5177
-npm run dev
-
-# Ejecutar tests unitarios
-npm run test:unit
-
-# Verificación en navegador real (Moli, modo solo-local)
-npm run test:moli-download
-
-# Compilar para producción (genera dist/)
-npm run build
-```
-
----
-
 ## 🏗️ Arquitectura de Extracción
 
 ```text
