@@ -23,10 +23,10 @@ export function DownloadProgress({ state, onCancel }: DownloadProgressProps) {
           )}
           <span className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
             {isFinished
-              ? 'Descarga completada'
+              ? 'Download complete'
               : isError
-              ? 'Error en la descarga'
-              : 'Descargando archivo...'}
+              ? 'Download error'
+              : 'Downloading file...'}
           </span>
         </div>
 
@@ -36,7 +36,7 @@ export function DownloadProgress({ state, onCancel }: DownloadProgressProps) {
             <button
               type="button"
               onClick={onCancel}
-              title="Cancelar descarga"
+              title="Cancel download"
               className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b] hover:text-red-500 transition-colors"
             >
               <X className="w-4 h-4" />

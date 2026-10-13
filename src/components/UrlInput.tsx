@@ -36,7 +36,7 @@ export function UrlInput({ url, onChange, onSubmit, isLoading, onClear }: UrlInp
     switch (platform) {
       case 'local':
         return (
-          <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0" title="Archivo local">
+          <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0" title="Local file">
             <HardDrive className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
             <span className="hidden sm:inline">Local</span>
           </span>
@@ -68,7 +68,7 @@ export function UrlInput({ url, onChange, onSubmit, isLoading, onClear }: UrlInp
           value={url}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Pega un enlace directo .mp4, .webm, .mp3, .m4a, .wav..."
+          placeholder="Paste a direct .mp4, .webm, .mp3, .m4a, .wav link..."
           disabled={isLoading}
           className="flex-1 bg-transparent text-sm sm:text-base text-[#1d1d1f] dark:text-[#f5f5f7] placeholder-[#86868b]/70 outline-none px-1.5 sm:px-2 min-w-0"
         />
@@ -79,7 +79,7 @@ export function UrlInput({ url, onChange, onSubmit, isLoading, onClear }: UrlInp
             <button
               type="button"
               onClick={onClear}
-              title="Borrar texto"
+              title="Clear text"
               className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b] transition-colors"
             >
               <X className="w-4 h-4" />
@@ -88,11 +88,11 @@ export function UrlInput({ url, onChange, onSubmit, isLoading, onClear }: UrlInp
             <button
               type="button"
               onClick={handlePaste}
-              title="Pegar del portapapeles"
+              title="Paste from clipboard"
               className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-all"
             >
               <Clipboard className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Pegar</span>
+              <span className="hidden sm:inline">Paste</span>
             </button>
           )}
 
@@ -110,11 +110,11 @@ export function UrlInput({ url, onChange, onSubmit, isLoading, onClear }: UrlInp
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="hidden sm:inline">Extrayendo...</span>
+                <span className="hidden sm:inline">Extracting...</span>
               </>
             ) : (
               <>
-                <span className="hidden sm:inline">Descargar</span>
+                <span className="hidden sm:inline">Download</span>
                 <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
               </>
             )}

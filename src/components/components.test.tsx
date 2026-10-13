@@ -6,7 +6,7 @@ import { UrlInput } from './UrlInput';
 import { MediaMetadata } from '../services/extractors/types';
 
 describe('Responsive and Audio Detection Component Tests', () => {
-  it('PreviewCard correctly identifies audio-only media and sets button to Descargar Audio', () => {
+  it('PreviewCard correctly identifies audio-only media and sets button to Download Audio', () => {
     const audioOnlyMedia: MediaMetadata = {
       id: 'test-audio-1',
       originalUrl: 'https://example.com/audio.mp3',
@@ -35,10 +35,10 @@ describe('Responsive and Audio Detection Component Tests', () => {
       />
     );
 
-    // Must have "Descargar Audio"
-    expect(html).toContain('Descargar Audio');
-    // Must NOT have "Descargar Vídeo"
-    expect(html).not.toContain('Descargar Vídeo');
+    // Must have "Download Audio"
+    expect(html).toContain('Download Audio');
+    // Must NOT have "Download Video"
+    expect(html).not.toContain('Download Video');
     // Must display format
     expect(html).toContain('mp3');
   });
@@ -69,7 +69,7 @@ describe('Responsive and Audio Detection Component Tests', () => {
           hasAudio: true
         }
       ],
-      extractedVia: 'Enlace Directo Local (sin APIs)'
+      extractedVia: 'Local Direct Link (no APIs)'
     };
 
     const html = renderToString(
@@ -81,9 +81,9 @@ describe('Responsive and Audio Detection Component Tests', () => {
       />
     );
 
-    expect(html).toContain('Vídeo');
-    expect(html).toContain('Solo Audio');
-    expect(html).toContain('Descargar Vídeo');
+    expect(html).toContain('Video');
+    expect(html).toContain('Audio Only');
+    expect(html).toContain('Download Video');
   });
 
   it('Header hides v1.0 badge on mobile and renders compact elements', () => {

@@ -84,7 +84,7 @@ export function getSettings(): AppSettings {
       return memorySettings;
     }
     const parsed = JSON.parse(raw);
-    // Strip legacy remote-service keys (modo solo-local)
+    // Strip legacy remote-service keys (local-only mode)
     delete parsed.cobaltInstance;
     delete parsed.customCorsProxy;
     const result = { ...DEFAULT_SETTINGS, ...parsed };

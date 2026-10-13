@@ -46,7 +46,7 @@ export interface MediaMetadata {
   thumbnailUrl?: string;
   duration?: number; // seconds
   streams: StreamOption[];
-  extractedVia: string; // e.g. "Enlace Directo Local", "Archivo Local"
+  extractedVia: string; // e.g. "Local Direct Link", "Local File"
 }
 
 export interface ExtractionResult {

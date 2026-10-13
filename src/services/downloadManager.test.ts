@@ -51,7 +51,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
     const onProgress = vi.fn();
 
     await expect(downloadStream(sampleStream, 'Test Title', onProgress)).rejects.toThrow(
-      /respuesta vacía \(0 bytes\)/i
+      /empty response \(0 bytes\)/i
     );
 
     // Verify createObjectURL was never called (no 0-byte blob created for download)
@@ -83,7 +83,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
     const onProgress = vi.fn();
 
     await expect(downloadStream(sampleStream, 'Test Title', onProgress)).rejects.toThrow(
-      /0 bytes recibidos/i
+      /0 bytes received/i
     );
 
     expect(URL.createObjectURL).not.toHaveBeenCalled();
@@ -107,7 +107,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
     const onProgress = vi.fn();
 
     await expect(downloadStream(sampleStream, 'Test Title', onProgress)).rejects.toThrow(
-      /Error HTTP 404/i
+      /HTTP error 404/i
     );
 
     expect(URL.createObjectURL).not.toHaveBeenCalled();
@@ -183,7 +183,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
     const onProgress = vi.fn();
 
     await expect(downloadStream(sampleStream, 'Test Title', onProgress)).rejects.toThrow(
-      /flujo de datos de la descarga no está disponible/i
+      /download data stream is not available/i
     );
 
     expect(URL.createObjectURL).not.toHaveBeenCalled();
@@ -219,7 +219,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
         isDownloading: false,
         progress: 100,
         bytesReceived: 8,
-        speed: 'Completado'
+        speed: 'Completed'
       })
     );
   });
@@ -231,7 +231,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
     };
 
     await expect(downloadStream(invalidStream, 'Video')).rejects.toThrow(
-      /no contiene un archivo multimedia descargable directo/i
+      /does not contain a directly downloadable media file/i
     );
   });
 
@@ -244,7 +244,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
     globalThis.fetch = fetchSpy;
 
     await expect(downloadStream(zeroSizeStream, 'Zero Video')).rejects.toThrow(
-      /tamaño indicado para este archivo es de 0 bytes/i
+      /declared file size is 0 bytes/i
     );
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(URL.createObjectURL).not.toHaveBeenCalled();
@@ -259,7 +259,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
     } as unknown as Response);
 
     await expect(downloadStream(sampleStream, 'Empty Video')).rejects.toThrow(
-      /respuesta sin contenido \(0 bytes\)/i
+      /no content \(0 bytes\)/i
     );
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
@@ -280,7 +280,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
 
     const onProgress = vi.fn();
     await expect(downloadStream(sampleStream, 'Blocked Video', onProgress)).rejects.toThrow(
-      /respuesta vacía \(0 bytes\)/i
+      /empty response \(0 bytes\)/i
     );
     expect(URL.createObjectURL).not.toHaveBeenCalled();
     expect(onProgress).toHaveBeenCalledWith(
@@ -308,7 +308,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
 
     const onProgress = vi.fn();
     await expect(downloadStream(sampleStream, 'NaN Content Length', onProgress)).rejects.toThrow(
-      /respuesta vacía \(0 bytes\)/i
+      /empty response \(0 bytes\)/i
     );
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
@@ -329,7 +329,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
 
     const onProgress = vi.fn();
     await expect(downloadStream(sampleStream, 'NaN Estimated Length', onProgress)).rejects.toThrow(
-      /respuesta vacía \(0 bytes\)/i
+      /empty response \(0 bytes\)/i
     );
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
@@ -364,7 +364,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
     expect(onProgress).toHaveBeenCalledWith(
       expect.objectContaining({
         isDownloading: false,
-        speed: 'Cancelado'
+        speed: 'Cancelled'
       })
     );
   });
@@ -502,7 +502,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
           progress: 100,
           bytesReceived: 8,
           totalBytes: 8,
-          speed: 'Completado'
+          speed: 'Completed'
         })
       );
     });
@@ -560,7 +560,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
           isDownloading: false,
           progress: 100,
           bytesReceived: 10,
-          speed: 'Completado'
+          speed: 'Completed'
         })
       );
     });
@@ -593,7 +593,7 @@ describe('Download Manager - 0-byte and error prevention', () => {
 
       const onProgress = vi.fn();
       await expect(downloadStream(sampleStream, 'Exhausted_Video', onProgress)).rejects.toThrow(
-        /intentos de reconexión/i
+        /reconnection attempts/i
       );
 
       // Verify 1 initial call + 3 resume attempts = 4 total calls

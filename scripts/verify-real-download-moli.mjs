@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Moli Headless Browser Runtime Verification — MODO SOLO-LOCAL
+// Moli Headless Browser Runtime Verification — LOCAL-ONLY MODE
 // Sin APIs externas, sin proxies, sin Cobalt/Invidious/TikWM/FxTwitter.
-// Verifica: rechazo de URLs de plataforma, extracción directa y descarga 100% local.
+// Verifies: platform-URL rejection, direct extraction, and 100% local download.
 
 import { execSync } from 'node:child_process';
 import http from 'node:http';
@@ -51,7 +51,7 @@ async function runMoliEval(jsCode) {
 
 async function main() {
   console.log('======================================================================');
-  console.log('HydraDownloader: Moli Runtime Verification — MODO SOLO-LOCAL');
+  console.log('HydraDownloader: Moli Runtime Verification — LOCAL-ONLY MODE');
   console.log('======================================================================\n');
 
   console.log(`Checking Moli binary at ${MOLI_BIN}...`);
@@ -156,7 +156,7 @@ async function main() {
       const size = 262144;
       const bytes = new Uint8Array(size);
       for (let i = 0; i < size; i++) bytes[i] = i % 256;
-      const file = new File([bytes], 'prueba-local.mp4', { type: 'video/mp4' });
+      const file = new File([bytes], 'local-test.mp4', { type: 'video/mp4' });
       const media = createLocalFileMedia(file);
       const stream = media.streams[0];
 

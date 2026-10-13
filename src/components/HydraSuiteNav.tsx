@@ -9,7 +9,7 @@ interface HydraSuiteNavProps {
 const APPS = [
   {
     name: 'HydraCut Studio',
-    desc: 'Editor de vídeo multitrack',
+    desc: 'Multitrack video editor',
     icon: Film,
     port: 5173,
     url: 'https://hydracut.pages.dev/',
@@ -17,7 +17,7 @@ const APPS = [
   },
   {
     name: 'Hydra Hub',
-    desc: 'Portal y catálogo de la suite',
+    desc: 'Suite portal and catalog',
     icon: LayoutGrid,
     port: 5174,
     url: 'https://hydraapps.pages.dev/',
@@ -25,7 +25,7 @@ const APPS = [
   },
   {
     name: 'HydraDAW',
-    desc: 'Estación de audio digital',
+    desc: 'Digital audio workstation',
     icon: Music,
     port: 5175,
     url: 'https://hydradaw.pages.dev/',
@@ -33,7 +33,7 @@ const APPS = [
   },
   {
     name: 'HydraConvert',
-    desc: 'Conversor multimedia local',
+    desc: 'Local media converter',
     icon: RefreshCw,
     port: 5176,
     url: 'https://hydraconverter.pages.dev/',
@@ -41,7 +41,7 @@ const APPS = [
   },
   {
     name: 'HydraDownloader',
-    desc: 'Descargador universal web',
+    desc: 'Universal web downloader',
     icon: Download,
     port: 5177,
     url: 'https://hydradownloader.pages.dev/',
@@ -86,7 +86,7 @@ export function HydraSuiteNav({ isOpen, onClose }: HydraSuiteNavProps) {
       <div className="space-y-1">
         {APPS.map((app) => {
           const Icon = app.icon;
-          // En local (dev) enlaza a localhost:puerto; en producción a la pages.dev
+          // In local dev, link to localhost:port; in production to pages.dev
           const href =
             typeof window !== 'undefined' && window.location.hostname === 'localhost'
               ? `http://localhost:${app.port}`
@@ -105,7 +105,7 @@ export function HydraSuiteNav({ isOpen, onClose }: HydraSuiteNavProps) {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold truncate">{app.name}</span>
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-600 text-white px-1.5 py-0.2 rounded">
-                      Actual
+                      Current
                     </span>
                   </div>
                   <p className="text-xs text-blue-600/70 dark:text-blue-400/70 truncate">{app.desc}</p>

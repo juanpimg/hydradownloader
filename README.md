@@ -4,100 +4,100 @@
 [![Privacy](https://img.shields.io/badge/Privacy-Zero%20Data%20Collected-blue)](#)
 [![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
-> Descargador 100% local en el navegador: enlaces directos y archivos de tu dispositivo, **sin APIs externas, sin proxies y sin backend**. Parte de la suite **HydraApps**.
+> 100% local in-browser downloader: direct links and files from your device, **no external APIs, no proxies, no backend**. Part of the **HydraApps** suite.
 
-Lo que nos diferencia: **cero llamadas a APIs de terceros**. Todo ocurre en tu navegador.
+What sets us apart: **zero third-party API calls**. Everything happens in your browser.
 
-> 🔬 **Reto abierto: YouTube 100% local.** Hoy las URLs de plataforma se
-> rechazan (el navegador bloquea la lectura cross-origin sin `ACAO`, probado
-> con URL real de `googlevideo`). Buscamos una PoC en página pura que devuelva
-> ≥1 byte legible sin proxy ni extensión. Ver
-> [`docs/LOCAL-ONLY-RESEARCH.md`](./docs/LOCAL-ONLY-RESEARCH.md) — ¡se aceptan
-> issues y PRs con refutaciones!
+> 🔬 **Open challenge: 100% local YouTube.** Platform URLs are currently
+> rejected (the browser blocks cross-origin reads without `ACAO`, proven
+> with a real `googlevideo` URL). We are looking for a pure-page PoC that
+> returns ≥1 readable byte with no proxy and no extension. See
+> [`docs/LOCAL-ONLY-RESEARCH.md`](./docs/LOCAL-ONLY-RESEARCH.md) — issues and
+> PRs with refutations welcome!
 
 ---
 
-## 🔬 Estado del proyecto: necesitamos ayuda
+## 🔬 Project status: we need help
 
-**Lo que funciona hoy:** enlaces directos (`.mp4`, `.webm`, `.mp3`…) y
-archivos locales. Todo 100% en tu navegador, verificado con tests (36/36) y
-navegador real Moli.
+**What works today:** direct links (`.mp4`, `.webm`, `.mp3`…) and local
+files. All 100% in your browser, verified with unit tests (36/36) and the
+real Moli browser.
 
-**Lo que NO hemos conseguido todavía:** descargar de YouTube, TikTok, X ni
-otras plataformas sin servidor, proxy ni extensión. El navegador bloquea la
-lectura cross-origin (sin `Access-Control-Allow-Origin` no hay bytes) y lo
-hemos probado con URLs reales de `googlevideo`: 0 bytes legibles en los 3
-modos de `fetch`.
+**What we have NOT achieved yet:** downloading from YouTube, TikTok, X or
+other platforms with no server, proxy or extension. The browser blocks
+cross-origin reads (no bytes without `Access-Control-Allow-Origin`), and we
+proved it with real `googlevideo` URLs: 0 readable bytes in all 3 `fetch`
+modes.
 
-**Seguimos intentándolo y necesitamos ayuda:** si se te ocurre una vía en
-página pura (o sabes refutar nuestra tabla de decisión), abre un issue o PR
-con una PoC reproducible. Todo el análisis está en
+**We keep trying and we need help:** if you can think of a pure-page approach
+(or can refute our decision table), open an issue or PR with a reproducible
+PoC. The full analysis lives in
 [`docs/LOCAL-ONLY-RESEARCH.md`](./docs/LOCAL-ONLY-RESEARCH.md).
 
 ---
 
-## ⚡ Características Principales
+## ⚡ Key Features
 
-- **100% Local**: Sin backend propio y sin APIs de terceros. Sin FxTwitter, TikWM, Cobalt, Invidious, Piped ni proxies CORS. Solo `fetch` directo al archivo que tú indicas y `blob:` URLs de tus propios archivos.
-- **Dos únicas vías**:
-  - **Enlaces directos**: archivos `.mp4`, `.webm`, `.mp3`, `.m4a`, `.wav`, etc. con inspección HEAD local.
-  - **Archivos locales**: carga un vídeo/audio desde tu dispositivo y se procesa sin red (objeto Blob local).
+- **100% Local**: No in-house backend and no third-party APIs. No FxTwitter, TikWM, Cobalt, Invidious, Piped or CORS proxies. Only a direct `fetch` to the file you point at and `blob:` URLs for your own files.
+- **Exactly two ways in**:
+  - **Direct links**: `.mp4`, `.webm`, `.mp3`, `.m4a`, `.wav`, etc. files with local HEAD inspection.
+  - **Local files**: load a video/audio file from your device and it is processed with no network (local Blob object).
 - **Apple HIG & Liquid Glass Aesthetics**:
-  - Materiales translúcidos con desenfoque de fondo (`backdrop-blur-xl`, bordes sutiles y sombras elevadas).
-  - Tipografía clara inspirada en SF Pro con jerarquía estricta.
-  - Control segmentado fluido estilo iOS/macOS para alternar entre Vídeo y Solo Audio.
-  - Hojas modales (Sheets) y cajones laterales para ajustes e historial.
-  - Modo claro y oscuro con detección automática y selector manual.
-- **Gestión local**:
-  - Sin proxies CORS ni instancias configurables. Si el servidor origen bloquea CORS, el navegador inicia la descarga directa como alternativa.
-- **Historial Local Privado**:
-  - Almacena tus últimas descargas en `localStorage` (sin enviar nada a la nube).
-  - Re-descarga en un clic o copia del enlace directo.
-- **Integración HydraApps**:
-  - Puerto de desarrollo asignado: `:5177`.
-  - Conmutador directo entre aplicaciones de la suite (`HydraCut`, `HydraHub`, `HydraDAW`, `HydraConvert`).
+  - Translucent materials with background blur (`backdrop-blur-xl`, subtle borders and elevated shadows).
+  - Clean SF Pro-inspired typography with strict hierarchy.
+  - Fluid iOS/macOS-style segmented control to switch between Video and Audio Only.
+  - Modal sheets and side drawers for settings and history.
+  - Light and dark mode with automatic detection and manual switch.
+- **Local handling**:
+  - No CORS proxies or configurable instances. If the origin server blocks CORS, the browser starts a direct download as a fallback.
+- **Private Local History**:
+  - Stores your latest downloads in `localStorage` (nothing sent to the cloud).
+  - One-click re-download or direct-link copy.
+- **HydraApps Integration**:
+  - Assigned development port: `:5177`.
+  - Direct switcher to the other suite apps (`HydraCut`, `HydraHub`, `HydraDAW`, `HydraConvert`).
 
 ---
 
-## 🏗️ Arquitectura de Extracción
+## 🏗️ Extraction Architecture
 
 ```text
-URL directa o Archivo local
+Direct URL or Local File
       │
       ▼
-Detector Local (direct / local / unknown)
+Local Detector (direct / local / unknown)
       │
-      ├─► Enlace directo ──► HEAD local / GET por rangos ──┐
-      └─► Archivo local ──► Blob URL (sin red) ───────────┼──► MediaMetadata & Streams
-                                                          │           │
-                                                          │           ▼
-                                                          │    Tarjeta Preview Apple HIG
-                                                          │           │
-                                                          │           ▼
-                                                          │    Descarga Progresiva / Blob
+      ├─► Direct link ──► Local HEAD / ranged GET ──┐
+      └─► Local file ──► Blob URL (no network) ────┼──► MediaMetadata & Streams
+                                                    │           │
+                                                    │           ▼
+                                                    │    Apple HIG Preview Card
+                                                    │           │
+                                                    │           ▼
+                                                    │    Progressive Download / Blob
 ```
 
 ---
 
-## 🛠️ Tecnologías
+## 🛠️ Technologies
 
 - **React 18** + **TypeScript**
 - **Vite 5**
-- **Tailwind CSS 3** con tokens Apple HIG y Liquid Glass
-- **Lucide React** (iconografía inspirada en SF Symbols)
-- **Vitest** (suite de pruebas unitarias para extractores y parseo)
+- **Tailwind CSS 3** with Apple HIG tokens and Liquid Glass
+- **Lucide React** (SF Symbols-inspired iconography)
+- **Vitest** (unit test suite for extractors and parsing)
 
 ---
 
-## 🔒 Seguridad
+## 🔒 Security
 
-Sin backend propio y sin APIs de terceros: cero llamadas externas. Solo `fetch` directo al archivo que tú indicas (o ninguna red en el caso de archivos locales). No hay secretos en el repo; `.env*` está ignorado en `.gitignore`. El historial y ajustes viven en `localStorage` de tu navegador.
+No in-house backend and no third-party APIs: zero external calls. Only a direct `fetch` to the file you point at (or no network at all for local files). No secrets in the repo; `.env*` is ignored in `.gitignore`. History and settings live in your browser's `localStorage`.
 
 ---
 
-## ⚖️ Aviso legal
+## ⚖️ Legal Notice
 
-- **Uso legítimo:** descarga únicamente contenido del que poseas los derechos, que sea de dominio público o con licencia que lo permita, o cuando la legislación de tu país lo autorice (p. ej. copia privada). Respeta los Términos de Servicio del servidor origen de cada archivo y la normativa de propiedad intelectual aplicable en tu jurisdicción.
-- **Sin elusión de protecciones:** no utilices esta herramienta para eludir medidas tecnológicas de protección (DRM) donde la ley lo prohíba.
-- **Sin servicios de terceros:** no hay APIs, instancias ni proxies ajenos. La app solo conecta directamente con el servidor del archivo que tú indicas (o con ningún servidor, en el caso de archivos locales). Si ese servidor bloquea CORS o deja de servir el archivo, la descarga fallará sin alternativa externa.
-- **Sin garantías:** software "tal cual" (licencia MIT). El autor no responde de daños directos o indirectos derivados del uso o mal uso de esta herramienta, ni de la disponibilidad o legalidad del contenido descargado. La responsabilidad del uso es exclusivamente tuya.
+- **Legitimate use:** only download content you own the rights to, that is public domain or licensed accordingly, or where your country's laws allow it (e.g. private copying). Respect the origin server's Terms of Service and the intellectual-property laws of your jurisdiction.
+- **No circumvention:** do not use this tool to bypass technological protection measures (DRM) where prohibited by law.
+- **No third-party services:** no external APIs, instances or proxies. The app only connects directly to the server of the file you point at (or to no server at all, for local files). If that server blocks CORS or stops serving the file, the download will fail with no external fallback.
+- **No warranties:** software "as is" (MIT license). The author is not liable for direct or indirect damages from use or misuse of this tool, nor for the availability or legality of downloaded content. Responsibility for its use is entirely yours.

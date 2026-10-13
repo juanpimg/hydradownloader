@@ -4,7 +4,7 @@ import { directExtractor } from './direct';
 import { createLocalFileMedia, isLocalMediaFileName } from './local';
 import { sanitizeFilename, formatBytes } from '../downloadManager';
 
-describe('Platform Detector (solo-local)', () => {
+describe('Platform Detector (local-only)', () => {
   it('detects direct media files correctly', () => {
     expect(detectPlatform('https://example.com/video.mp4')).toBe('direct');
     expect(detectPlatform('https://example.com/audio.mp3?token=123')).toBe('direct');
@@ -14,7 +14,7 @@ describe('Platform Detector (solo-local)', () => {
     expect(detectPlatform('blob:https://example.com/uuid')).toBe('local');
   });
 
-  it('returns unknown for platform pages (sin APIs externas)', () => {
+  it('returns unknown for platform pages (no external APIs)', () => {
     expect(detectPlatform('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe('unknown');
     expect(detectPlatform('https://twitter.com/user/status/1234567890')).toBe('unknown');
   });
@@ -25,7 +25,7 @@ describe('Platform Detector (solo-local)', () => {
   });
 });
 
-describe('Extractor Handler Matching (solo-local)', () => {
+describe('Extractor Handler Matching (local-only)', () => {
   it('directExtractor handles media file URLs', () => {
     expect(directExtractor.canHandle('https://example.com/test.mp4')).toBe(true);
     expect(directExtractor.canHandle('https://example.com/sound.mp3')).toBe(true);
@@ -39,7 +39,7 @@ describe('Extractor Handler Matching (solo-local)', () => {
   });
 });
 
-describe('extractMedia (solo-local)', () => {
+describe('extractMedia (local-only)', () => {
   it('extracts direct media without external APIs', async () => {
     const originalFetch = globalThis.fetch;
     try {
@@ -52,7 +52,7 @@ describe('extractMedia (solo-local)', () => {
       const result = await extractMedia('https://example.com/video.mp4');
       expect(result.success).toBe(true);
       expect(result.data?.platform).toBe('direct');
-      expect(result.data?.extractedVia).toMatch(/sin APIs/i);
+      expect(result.data?.extractedVia).toMatch(/no APIs/i);
       expect(result.data?.streams.length).toBeGreaterThan(0);
     } finally {
       globalThis.fetch = originalFetch;
@@ -62,11 +62,11 @@ describe('extractMedia (solo-local)', () => {
   it('rejects platform URLs with local-only guidance', async () => {
     const result = await extractMedia('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
     expect(result.success).toBe(false);
-    expect(result.error).toMatch(/solo-local/i);
+    expect(result.error).toMatch(/local-only/i);
   });
 });
 
-describe('Local file handling (sin red)', () => {
+describe('Local file handling (no network)', () => {
   it('detects local media file names', () => {
     expect(isLocalMediaFileName('video.mp4')).toBe(true);
     expect(isLocalMediaFileName('song.mp3')).toBe(true);
@@ -79,7 +79,7 @@ describe('Local file handling (sin red)', () => {
     expect(media.platform).toBe('local');
     expect(media.title).toBe('test-video.mp4');
     expect(media.streams).toHaveLength(1);
-    expect(media.extractedVia).toMatch(/sin red/i);
+    expect(media.extractedVia).toMatch(/no network/i);
     expect(media.streams[0].url.startsWith('blob:')).toBe(true);
   });
 });
@@ -98,7 +98,7 @@ describe('Download Manager Helpers', () => {
   });
 });
 
-describe('Storage & Settings (solo-local)', () => {
+describe('Storage & Settings (local-only)', () => {
   const originalLocalStorage = globalThis.localStorage;
   let mockStorage: Record<string, string> = {};
 

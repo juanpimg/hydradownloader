@@ -14,13 +14,13 @@ interface HistoryDrawerProps {
 function timeAgo(timestamp: number): string {
   const diffMs = Date.now() - timestamp;
   const diffSec = Math.floor(diffMs / 1000);
-  if (diffSec < 60) return 'Hace un momento';
+  if (diffSec < 60) return 'Just now';
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `Hace ${diffMin} min`;
+  if (diffMin < 60) return `${diffMin} min ago`;
   const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `Hace ${diffHours} h`;
+  if (diffHours < 24) return `${diffHours} h ago`;
   const diffDays = Math.floor(diffHours / 24);
-  return `Hace ${diffDays} d`;
+  return `${diffDays} d ago`;
 }
 
 export function HistoryDrawer({
@@ -44,9 +44,9 @@ export function HistoryDrawer({
             </div>
             <div>
               <h3 className="text-base font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
-                Historial de Descargas
+                Download History
               </h3>
-              <p className="text-xs text-[#86868b]">{items.length} elementos guardados localmente</p>
+              <p className="text-xs text-[#86868b]">{items.length} items stored locally</p>
             </div>
           </div>
           <button
@@ -66,10 +66,10 @@ export function HistoryDrawer({
                 <History className="w-7 h-7 stroke-[1.5] opacity-50" />
               </div>
               <p className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] mb-1">
-                Sin descargas recientes
+                No recent downloads
               </p>
               <p className="text-xs max-w-xs">
-                Los archivos que descargues aparecerán aquí para que puedas acceder a ellos fácilmente.
+                Files you download will appear here for easy access.
               </p>
             </div>
           ) : (
@@ -122,7 +122,7 @@ export function HistoryDrawer({
                         triggerBrowserSave(item.streamUrl, sanitizeFilename(item.title, item.format));
                       }
                     }}
-                    title="Volver a descargar"
+                    title="Download again"
                     className="p-1.5 rounded-full hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-colors"
                   >
                     <Download className="w-4 h-4" />
@@ -132,7 +132,7 @@ export function HistoryDrawer({
                     href={item.originalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    title="Abrir enlace original"
+                    title="Open original link"
                     className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b] transition-colors"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -141,7 +141,7 @@ export function HistoryDrawer({
                   <button
                     type="button"
                     onClick={() => onRemoveItem(item.id)}
-                    title="Eliminar de historial"
+                    title="Remove from history"
                     className="p-1.5 rounded-full hover:bg-red-500/10 text-red-500 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -161,14 +161,14 @@ export function HistoryDrawer({
               className="text-xs text-red-500 hover:text-red-600 transition-colors flex items-center gap-1"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Vaciar Historial</span>
+              <span>Clear History</span>
             </button>
             <button
               type="button"
               onClick={onClose}
               className="px-4 py-1.5 rounded-full bg-black/5 dark:bg-white/10 text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/10 dark:hover:bg-white/15 transition-all"
             >
-              Cerrar
+              Close
             </button>
           </div>
         )}

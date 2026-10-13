@@ -20,7 +20,7 @@ export function detectPlatform(url: string): PlatformType {
 export async function extractMedia(url: string, signal?: AbortSignal): Promise<ExtractionResult> {
   const trimmed = url.trim();
   if (!trimmed) {
-    return { success: false, error: 'Por favor, introduce una URL válida.' };
+    return { success: false, error: 'Please enter a valid URL.' };
   }
 
   const matchedExtractor = extractors.find((ext) => ext.canHandle(trimmed));
@@ -28,7 +28,7 @@ export async function extractMedia(url: string, signal?: AbortSignal): Promise<E
     return {
       success: false,
       error:
-        'Modo solo-local: pega un enlace directo a un archivo (.mp4, .webm, .mp3, .m4a, .wav, etc.) o carga un archivo desde tu dispositivo. Sin APIs externas, sin proxies, sin servidores.'
+        'Local-only mode: paste a direct link to a file (.mp4, .webm, .mp3, .m4a, .wav, etc.) or load a file from your device. No external APIs, no proxies, no servers.'
     };
   }
 
@@ -37,7 +37,7 @@ export async function extractMedia(url: string, signal?: AbortSignal): Promise<E
   } catch (err: any) {
     return {
       success: false,
-      error: `Error inesperado durante la extracción: ${err.message || 'Error desconocido'}`
+      error: `Unexpected extraction error: ${err.message || 'Unknown error'}`
     };
   }
 }

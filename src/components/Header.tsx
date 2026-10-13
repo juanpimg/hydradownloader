@@ -42,7 +42,7 @@ export function Header({
         <button
           type="button"
           onClick={onOpenHistory}
-          title="Historial de descargas"
+          title="Download history"
           className="relative p-1.5 sm:p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-all"
         >
           <History className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -57,7 +57,7 @@ export function Header({
         <button
           type="button"
           onClick={onOpenSettings}
-          title="Ajustes y Proxies"
+          title="Settings"
           className="p-1.5 sm:p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-all"
         >
           <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -67,7 +67,7 @@ export function Header({
         <button
           type="button"
           onClick={onToggleTheme}
-          title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           className="p-1.5 sm:p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-all"
         >
           {theme === 'dark' ? <Sun className="w-4 h-4 sm:w-5 sm:h-5" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5" />}
@@ -78,8 +78,8 @@ export function Header({
           href="https://github.com/juanpimg/hydradownloader"
           target="_blank"
           rel="noopener noreferrer"
-          title="Ver código en GitHub — ¡contribuye!"
-          aria-label="Ver HydraDownloader en GitHub (pestaña nueva)"
+          title="View code on GitHub — contribute!"
+          aria-label="View HydraDownloader on GitHub (new tab)"
           className="p-1.5 sm:p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-all"
         >
           <Github className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -90,7 +90,7 @@ export function Header({
           <button
             type="button"
             onClick={() => setSuiteMenuOpen(!suiteMenuOpen)}
-            title="Apps de HydraApps"
+            title="HydraApps apps"
             className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-[#1d1d1f] dark:text-[#f5f5f7] text-xs font-medium transition-all"
           >
             <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#86868b]" />

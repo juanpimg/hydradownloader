@@ -134,8 +134,8 @@ export function PreviewCard({ media, preferredMode, onDownload, isDownloading }:
                     if (targetList[0]) setSelectedStreamId(targetList[0].id);
                   }}
                   options={[
-                    { value: 'video', label: 'Vídeo', icon: <Film className="w-3.5 h-3.5" /> },
-                    { value: 'audio', label: 'Solo Audio', icon: <Music className="w-3.5 h-3.5" /> }
+                    { value: 'video', label: 'Video', icon: <Film className="w-3.5 h-3.5" /> },
+                    { value: 'audio', label: 'Audio Only', icon: <Music className="w-3.5 h-3.5" /> }
                   ]}
                 />
               </div>
@@ -147,7 +147,7 @@ export function PreviewCard({ media, preferredMode, onDownload, isDownloading }:
             {availableStreams.length > 1 && (
               <div className="flex items-center justify-between gap-3">
                 <label htmlFor={qualitySelectId} className="text-xs font-medium text-[#86868b]">
-                  Calidad / Formato:
+                  Quality / Format:
                 </label>
                 <select
                   id={qualitySelectId}
@@ -173,7 +173,7 @@ export function PreviewCard({ media, preferredMode, onDownload, isDownloading }:
               >
                 {effectiveMode === 'audio' ? <Music className="w-4 h-4" /> : <Download className="w-4 h-4" />}
                 <span>
-                  {effectiveMode === 'audio' ? 'Descargar Audio' : 'Descargar Vídeo'}
+                  {effectiveMode === 'audio' ? 'Download Audio' : 'Download Video'}
                 </span>
                 {activeStream?.format && (
                   <span className="text-[11px] opacity-80 uppercase font-mono">
@@ -185,7 +185,7 @@ export function PreviewCard({ media, preferredMode, onDownload, isDownloading }:
               <button
                 type="button"
                 onClick={handleCopyLink}
-                title="Copiar enlace directo"
+                title="Copy direct link"
                 className="p-2.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-all"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}

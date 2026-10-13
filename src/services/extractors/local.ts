@@ -18,8 +18,8 @@ export function isLocalMediaFileName(name: string): boolean {
 }
 
 /**
- * Crea metadatos 100% locales a partir de un File del dispositivo.
- * No hay red: se genera un blob: URL y todo queda en el navegador.
+ * Builds 100% local metadata from a device File.
+ * No network: a blob: URL is generated and everything stays in the browser.
  */
 export function createLocalFileMedia(file: File): MediaMetadata {
   const { format, type } = detectFormat(file.name);
@@ -33,7 +33,7 @@ export function createLocalFileMedia(file: File): MediaMetadata {
     streams: [
       {
         id: `local-${Date.now()}`,
-        label: `Archivo Local (${format.toUpperCase()} — ${(file.size / 1024 / 1024).toFixed(1)} MB)`,
+        label: `Local File (${format.toUpperCase()} — ${(file.size / 1024 / 1024).toFixed(1)} MB)`,
         quality: 'original',
         format,
         type,
@@ -42,6 +42,6 @@ export function createLocalFileMedia(file: File): MediaMetadata {
         fileSize: file.size
       }
     ],
-    extractedVia: 'Archivo Local (sin red)'
+    extractedVia: 'Local File (no network)'
   };
 }

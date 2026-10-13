@@ -1,111 +1,112 @@
-# HydraDownloader — Investigación: descarga 100% local en el navegador
+# HydraDownloader — Research: 100% local downloads in the browser
 
-> **Estado (14-oct-2026): en pausa.** No existe solución probada para descargar
-> YouTube/TikTok/X en una página web pura sin servidor, proxy ni extensión.
-> Este documento deja constancia de lo investigado, lo probado y lo que queda
-> abierto, **para pedir ayuda**: si encuentras la forma, abre un issue o PR.
+> **Status (Oct-14-2026): paused.** There is no proven solution for
+> downloading YouTube/TikTok/X in a pure web page with no server, proxy or
+> extension. This document records what was researched, tested and left open,
+> **to ask for help**: if you find a way, open an issue or PR.
 
-## 1. Objetivo
+## 1. Goal
 
-Descargar vídeo/audio de cualquier plataforma ejecutando código **100% en el
-navegador del usuario**: cero backend propio, cero APIs de terceros
-(FxTwitter, TikWM, Cobalt, Invidious/Piped), cero proxies CORS. Solo la
-webapp + el navegador.
+Download video/audio from any platform running code **100% in the user's
+browser**: zero in-house backend, zero third-party APIs (FxTwitter, TikWM,
+Cobalt, Invidious/Piped), zero CORS proxies. Just the webapp + the browser.
 
-Lo que nos diferencia si se consigue: privacidad total y coste cero de
-infraestructura.
+What would set us apart if achieved: total privacy and zero infrastructure
+cost.
 
-## 2. Lo que la app hace hoy (modo solo-local, verificado)
+## 2. What the app does today (local-only mode, verified)
 
-- **Enlaces directos** (`.mp4`, `.webm`, `.mp3`, `.m4a`, `.wav`…): `HEAD` local
-  + descarga por rangos con reanudación. Funciona, `36/36` tests en verde.
-- **Archivos locales** (`src/services/extractors/local.ts`): `File` →
-  `blob:` URL, cero red. Funciona, verificado en Moli (256 KB, 100% local).
-- **URLs de plataforma** (YouTube, X, TikTok…): se rechazan con el mensaje
-  `Modo solo-local…`. Decisión consciente, no bug.
+- **Direct links** (`.mp4`, `.webm`, `.mp3`, `.m4a`, `.wav`…): local `HEAD`
+  + ranged downloads with resume. Works, `36/36` tests green.
+- **Local files** (`src/services/extractors/local.ts`): `File` →
+  `blob:` URL, zero network. Works, verified in Moli (256 KB, 100% local).
+- **Platform URLs** (YouTube, X, TikTok…): rejected with a
+  `Local-only mode…` message. A conscious decision, not a bug.
 
-## 3. Por qué la página pura no puede (barrera raíz)
+## 3. Why the pure page cannot do it (root barrier)
 
-Hay **dos redes** en todos los motores (Blink, Gecko, WebKit):
+There are **two networks** in every engine (Blink, Gecko, WebKit):
 
-- **A) `fetch()` de JS**: exige CORS. Sin `Access-Control-Allow-Origin` del
-  servidor, el body nunca llega al renderer.
-- **B) `<video src>`**: el stack media descarga y decodifica directo a GPU,
-  sin pasar por JS. Reproduce sin CORS, pero no expone bytes.
+- **A) JS `fetch()`**: requires CORS. Without the server's
+  `Access-Control-Allow-Origin`, the body never reaches the renderer.
+- **B) `<video src>`**: the media stack downloads and decodes straight to
+  the GPU without going through JS. It plays without CORS but exposes no
+  bytes.
 
-`<video>` pinta por B mientras A recibe respuesta opaca vacía. Reproducir ≠
-leer bytes. El punto exacto está en el boundary Network-Service → Renderer
-(Chromium: `services/network/orb/orb_filter.cc`, antes del `URLLoaderClient`).
+`<video>` paints via B while A receives an empty opaque response. Playing ≠
+reading bytes. The exact point is the Network-Service → Renderer boundary
+(Chromium: `services/network/orb/orb_filter.cc`, before `URLLoaderClient`).
 
-## 4. Experimentos realizados (evidencia, no teoría)
+## 4. Experiments run (evidence, not theory)
 
-Entorno: webapp en `http://localhost:5177`, Moli headless `1.1.16`,
+Environment: webapp at `http://localhost:5177`, headless Moli `1.1.16`,
 `Me at the zoo` (`jNQXAC9IVRw`).
 
-| # | Prueba | Resultado |
-|---|--------|-----------|
-| E1 | Control positivo: `fetch` a MP4 con `ACAO:*` (MDN `flower.mp4`) | ✅ 1.128.375 B, magic `ftyp`. La barrera es YouTube, no el navegador |
-| E2 | URL `googlevideo` **real, válida, misma IP, sin caducar** (obtenida server-side vía cliente ANDROID, `curl` → `200 video/mp4` 629.172 B, sin `ACAO`) | ❌ `fetch cors` → `CORS check failed: no Access-Control-Allow-Origin`; `no-cors` → `opaque status:0`; `Range` → mismo CORS fail. **0 bytes legibles** |
-| E3 | `POST youtubei/v1/player` | ❌ Desde página: `CORS preflight 403`. Desde servidor: `ANDROID=OK`, `WEB=UNPLAYABLE`, `TV=LOGIN_REQUIRED` (bot wall) |
-| S1 | `<video src=embed>`, iframe, canvas, MSE | ❌ Negro / `SecurityError` SOP / canvas tainted. Solo metadata (`oembed` 745 B) y thumbnail (15.921 B JPG) legibles |
+| # | Test | Result |
+|---|------|--------|
+| E1 | Positive control: `fetch` an MP4 with `ACAO:*` (MDN `flower.mp4`) | ✅ 1,128,375 B, `ftyp` magic. The barrier is YouTube, not the browser |
+| E2 | **Real, valid, same-IP, unexpired** `googlevideo` URL (resolved server-side via the ANDROID client, `curl` → `200 video/mp4` 629,172 B, no `ACAO`) | ❌ `fetch cors` → `CORS check failed: no Access-Control-Allow-Origin`; `no-cors` → `opaque status:0`; `Range` → same CORS failure. **0 readable bytes** |
+| E3 | `POST youtubei/v1/player` | ❌ From the page: `CORS preflight 403`. From a server: `ANDROID=OK`, `WEB=UNPLAYABLE`, `TV=LOGIN_REQUIRED` (bot wall) |
+| S1 | `<video src=embed>`, iframe, canvas, MSE | ❌ Black / SOP `SecurityError` / tainted canvas. Only metadata (`oembed` 745 B) and thumbnail (15,921 B JPEG) readable |
 
-**Falsador global confirmado**: URL válida + IP correcta + sin caducar + fetch
-en sus 3 modos = 0 bytes. Scripts en `scripts/verify-real-download-moli.mjs`
-(modo solo-local, 3/3 en verde) y evidencias en `/tmp` del entorno de pruebas.
+**Confirmed global falsifier**: valid URL + correct IP + unexpired + fetch in
+all 3 modes = 0 bytes. Scripts in `scripts/verify-real-download-moli.mjs`
+(local-only mode, 3/3 green) and evidence under `/tmp` of the test
+environment.
 
-## 5. Contexto 2026 (cada vez más difícil, no menos)
+## 5. 2026 context (getting harder, not easier)
 
-- Migración a **SABR**: sin links directos, endpoint único con UMP
-  multiplexado (`application/vnd.yt-ump`), sin rangos de bytes, con `poToken`
-  atado al vídeo + `n-param` que exige descifrar `base.js`.
-- Hasta el bypass `ANDROID_VR` se vuelve errático
+- **SABR** migration: no more direct links, a single endpoint with multiplexed
+  UMP (`application/vnd.yt-ump`), no byte ranges, video-bound `poToken` +
+  `n-param` requiring `base.js` deciphering.
+- Even the `ANDROID_VR` bypass is going erratic
   ([yt-dlp#16150](https://github.com/yt-dlp/yt-dlp/issues/16150)).
-- `yt-dlp#9820` (mantenedor `seproDev`): *"No point in compiling to wasm due
-  to CORS"*. Solo corrió en Pyodide desactivando CORS, sin ffmpeg ni threads.
-- La demo web SABR de LuanRT (`kira`) avisa: *"you'll need a proxy"*; su demo
-  Shaka exige `proxy server required`. El proxy `/videoplayback` de Invidious
-  añade literalmente `Access-Control-Allow-Origin: "*"`: alguien tiene que
-  ponerlo.
+- `yt-dlp#9820` (maintainer `seproDev`): *"No point in compiling to wasm due
+  to CORS"*. It only ran on Pyodide with CORS disabled, no ffmpeg, no
+  threads.
+- LuanRT's SABR web demo (`kira`) warns: *"you'll need a proxy"*; its Shaka
+  demo requires a `proxy server`. Invidious's `/videoplayback` proxy literally
+  adds `Access-Control-Allow-Origin: "*"`: someone has to send it.
 
-## 6. Vías evaluadas (tabla de decisión)
+## 6. Evaluated paths (decision table)
 
-| Vía | Veredicto |
-|-----|-----------|
-| `fetch` directo a `googlevideo`/`youtubei` | Bloqueado (CORS, probado E2/E3) |
-| `no-cors` / SW + caché opaca / COOP-COEP / MSE / canvas / `<a download>` / IFrame API / SABR en página | Bloqueado (reproduce, no lee) |
-| yt-dlp en Pyodide/WASM en página | Bloqueado (CORS + ~30 MB ffmpeg.wasm + sin threads) |
-| JS puro (`youtubei.js`, forks `ytdl-core`) | Bloqueado sin proxy (exigen `poToken`/OAuth generados fuera) |
-| Bookmarklet puro en `youtube.com` | Parcial (URLs/metadata sí, bytes no: `youtube→googlevideo` también es cross-origin) |
-| Helper en `localhost` + Private Network Access | Funciona, pero ya no es "solo navegador" |
-| **Extensión MV3** (patrón `avi12`/`dlpro`) | **Funciona (probado por terceros)**: content-script en `youtube.com` + `host_permissions` + mux WASM local |
-| App nativa/Electron/Tauri + binario yt-dlp | Funciona (patrón Stacher/Seal) |
+| Path | Verdict |
+|------|---------|
+| Direct `fetch` to `googlevideo`/`youtubei` | Blocked (CORS, proven E2/E3) |
+| `no-cors` / SW + opaque cache / COOP-COEP / MSE / canvas / `<a download>` / IFrame API / in-page SABR | Blocked (plays, never reads) |
+| yt-dlp on Pyodide/WASM in-page | Blocked (CORS + ~30 MB ffmpeg.wasm + no threads) |
+| Pure JS (`youtubei.js`, `ytdl-core` forks) | Blocked without proxy (need externally generated `poToken`/OAuth) |
+| Pure bookmarklet on `youtube.com` | Partial (URLs/metadata yes, bytes no: `youtube→googlevideo` is also cross-origin) |
+| `localhost` helper + Private Network Access | Works, but no longer "browser-only" |
+| **MV3 extension** (`avi12`/`dlpro` pattern) | **Works (third-party proven)**: content script on `youtube.com` + `host_permissions` + local WASM mux |
+| Native app / Electron / Tauri + yt-dlp binary | Works (Stacher/Seal pattern) |
 
-Cobertura de la extensión (verificado oct-2026): PC completa + Firefox
-Android (catálogo abierto desde F119) + Safari (Xcode + Developer + review) +
-forks Chromium en Android (Quetta/Lemur/Vivaldi). Hueco: Chrome Android
-oficial e iOS no-Safari.
+Extension coverage (verified Oct-2026): full PC + Firefox Android (catalog
+open since F119) + Safari (Xcode + Developer + review) + Chromium forks on
+Android (Quetta/Lemur/Vivaldi). Gap: official Chrome on Android and non-Safari
+iOS.
 
-## 7. Cómo ayudar (lo que buscamos)
+## 7. How to help (what we are looking for)
 
-1. **Una prueba de concepto en página pura** que, dado un `watch?v=…`,
-   devuelva ≥1 byte de stream legible desde JS (con `ftyp`/`1A45DFA3` y
-   headers registrados). Sin proxy, sin extensión, reproducible con Moli.
-2. **Refutación documentada** de alguna fila de la tabla (§6) con spec o
-   código que la contradiga.
-3. **Mejoras al modo solo-local**: mejor remux local (MediaBunny/WebCodecs),
-   captura de pestaña con audio, UX del picker local.
+1. **A pure-page proof of concept** that, given a `watch?v=…`, returns ≥1
+   readable stream byte from JS (with `ftyp`/`1A45DFA3` and logged headers).
+   No proxy, no extension, Moli-reproducible.
+2. **A documented refutation** of any row in the table (§6) with spec or code
+   that contradicts it.
+3. **Local-only improvements**: better local remux (MediaBunny/WebCodecs),
+   tab capture with audio, local-picker UX.
 
-Por favor: nada de "usa un proxy / mi API / mi backend". Eso ya lo tuvimos
-(Cobalt/Invidious) y se eliminó a propósito (ver historial git).
+Please: no "use a proxy / my API / my backend". We already had that
+(Cobalt/Invidious) and removed it on purpose (see git history).
 
-## 8. Plan I+D pendiente (si alguien lo retoma)
+## 8. Pending R&D plan (if anyone picks it up)
 
-Ver cartera E1–E8 completa en el historial de discusión del proyecto. Regla
-stage-gate: seguir en web pura **solo si** E1=PASA y (E2 o E3=PASA con URL
-legible CORS). Hoy: E1=PASA, E2=NO-PASA, E3=NO-PASA → **pivot a extensión o
-bridge**, web pura cerrada hasta refutación.
+See the full E1–E8 portfolio in the project's discussion history. Stage-gate
+rule: stay on the pure-web path **only if** E1=PASS and (E2 or E3=PASS with a
+CORS-readable URL). Today: E1=PASS, E2=FAIL, E3=FAIL → **pivot to extension or
+bridge**, pure web closed until refuted.
 
-## 9. Referencias
+## 9. References
 
 - `yt-dlp/yt-dlp#9820` (WASM/CORS), `yt-dlp#16150` (ANDROID_VR/SABR)
 - LuanRT `googlevideo` / `kira` / `yt-sabr-shaka-demo`, `avi12/youtube-downloader`, `machineonamission/dlpro`

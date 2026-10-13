@@ -15,12 +15,12 @@ export const directExtractor: Extractor = {
     try {
       const trimmed = url.trim();
 
-      // blob: URLs (archivos locales ya cargados): sin red, metadatos inmediatos
+      // blob: URLs (already-loaded local files): no network, instant metadata
       if (trimmed.startsWith('blob:')) {
         const streams: StreamOption[] = [
           {
             id: `direct-${Date.now()}`,
-            label: 'Archivo Local (BLOB)',
+            label: 'Local File (BLOB)',
             quality: 'original',
             format: 'mp4',
             type: 'video',
@@ -32,9 +32,9 @@ export const directExtractor: Extractor = {
           id: `direct-${Date.now()}`,
           originalUrl: trimmed,
           platform: 'local',
-          title: 'archivo-local',
+          title: 'local-file',
           streams,
-          extractedVia: 'Archivo Local (sin red)'
+          extractedVia: 'Local File (no network)'
         };
         return { success: true, data: metadata };
       }
@@ -52,7 +52,7 @@ export const directExtractor: Extractor = {
 
       let fileSize: number | undefined;
 
-      // HEAD directo al servidor origen del archivo (sin APIs ni proxies de terceros)
+      // Plain HEAD to the file's origin server (no third-party APIs or proxies)
       try {
         const headRes = await fetch(trimmed, { method: 'HEAD', signal });
         const len = headRes.headers.get('content-length');
@@ -66,7 +66,7 @@ export const directExtractor: Extractor = {
       const streams: StreamOption[] = [
         {
           id: `direct-${Date.now()}`,
-          label: `Archivo Directo (${ext.toUpperCase()})`,
+          label: `Direct File (${ext.toUpperCase()})`,
           quality: 'original',
           format: isAudio ? (ext as any) : (ext === 'webm' ? 'webm' : 'mp4'),
           type: isAudio ? 'audio' : 'video',
@@ -82,12 +82,12 @@ export const directExtractor: Extractor = {
         platform: 'direct',
         title: cleanFilename,
         streams,
-        extractedVia: 'Enlace Directo Local (sin APIs)'
+        extractedVia: 'Local Direct Link (no APIs)'
       };
 
       return { success: true, data: metadata };
     } catch (err: any) {
-      return { success: false, error: `Error procesando enlace directo: ${err.message}` };
+      return { success: false, error: `Error processing direct link: ${err.message}` };
     }
   }
 };

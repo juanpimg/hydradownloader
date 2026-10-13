@@ -42,9 +42,9 @@ export function SettingsSheet({
             </div>
             <div>
               <h3 className="text-base font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
-                Ajustes de HydraDownloader
+                HydraDownloader Settings
               </h3>
-              <p className="text-xs text-[#86868b]">100% local • Sin APIs • Sin proxies</p>
+              <p className="text-xs text-[#86868b]">100% local • No APIs • No proxies</p>
             </div>
           </div>
           <button
@@ -60,13 +60,13 @@ export function SettingsSheet({
           {/* General Preferences */}
           <div className="space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-[#86868b] flex items-center gap-1.5">
-              <span>Preferencias Generales</span>
+              <span>General Preferences</span>
             </h4>
 
             <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-3.5 space-y-3 border border-black/5 dark:border-white/5">
               <div className="flex items-center justify-between">
                 <label htmlFor={preferredModeId} className="text-xs font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
-                  Modo por defecto:
+                  Default mode:
                 </label>
                 <select
                   id={preferredModeId}
@@ -74,14 +74,14 @@ export function SettingsSheet({
                   onChange={(e) => handleChange('preferredMode', e.target.value)}
                   className="text-xs bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] px-3 py-1.5 rounded-xl border border-black/10 dark:border-white/10 outline-none"
                 >
-                  <option value="video">Vídeo</option>
-                  <option value="audio">Solo Audio</option>
+                  <option value="video">Video</option>
+                  <option value="audio">Audio Only</option>
                 </select>
               </div>
 
               <div className="flex items-center justify-between">
                 <label htmlFor={defaultQualityId} className="text-xs font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
-                  Calidad de vídeo:
+                  Video quality:
                 </label>
                 <select
                   id={defaultQualityId}
@@ -89,7 +89,7 @@ export function SettingsSheet({
                   onChange={(e) => handleChange('defaultQuality', e.target.value)}
                   className="text-xs bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] px-3 py-1.5 rounded-xl border border-black/10 dark:border-white/10 outline-none"
                 >
-                  <option value="best">Máxima Calidad (1080p / 4K)</option>
+                  <option value="best">Best Quality (1080p / 4K)</option>
                   <option value="1080">1080p FHD</option>
                   <option value="720">720p HD</option>
                   <option value="480">480p SD</option>
@@ -98,7 +98,7 @@ export function SettingsSheet({
 
               <div className="flex items-center justify-between">
                 <label htmlFor={defaultAudioFormatId} className="text-xs font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
-                  Formato de audio:
+                  Audio format:
                 </label>
                 <select
                   id={defaultAudioFormatId}
@@ -117,9 +117,9 @@ export function SettingsSheet({
           <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3.5 flex items-start gap-2.5">
             <HardDrive className="w-4 h-4 mt-0.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <div className="text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
-              <p className="font-semibold">Modo solo-local activo</p>
+              <p className="font-semibold">Local-only mode active</p>
               <p className="mt-0.5 opacity-90">
-                Sin llamadas a APIs externas, sin proxies CORS y sin servidores. Solo enlaces directos y archivos de tu dispositivo.
+                No external API calls, no CORS proxies, no servers. Only direct links and files from your device.
               </p>
             </div>
           </div>
@@ -129,14 +129,14 @@ export function SettingsSheet({
             <button
               type="button"
               onClick={() => {
-                if (confirm('¿Deseas vaciar todo el historial de descargas?')) {
+                if (confirm('Do you want to clear your entire download history?')) {
                   onClearHistory();
                 }
               }}
               className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Vaciar Historial Local</span>
+              <span>Clear Local History</span>
             </button>
 
             <button
@@ -144,7 +144,7 @@ export function SettingsSheet({
               onClick={onClose}
               className="px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-apple-subtle transition-all"
             >
-              Listo
+              Done
             </button>
           </div>
         </div>

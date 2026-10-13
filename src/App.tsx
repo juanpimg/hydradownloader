@@ -82,10 +82,10 @@ export function App() {
       if (result.success && result.data) {
         setMedia(result.data);
       } else {
-        setError(result.error || 'No se pudo extraer el contenido de este enlace.');
+        setError(result.error || 'Could not extract content from this link.');
       }
     } catch (err: any) {
-      setError(err.message || 'Error inesperado al conectar.');
+      setError(err.message || 'Unexpected connection error.');
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +100,7 @@ export function App() {
       setMedia(localMedia);
       setUrl('');
     } catch (err: any) {
-      setError(err.message || 'No se pudo cargar el archivo local.');
+      setError(err.message || 'Could not load the local file.');
     }
   };
 
@@ -137,10 +137,10 @@ export function App() {
           thumbnailUrl: media.thumbnailUrl
         });
         setHistory(getHistory());
-        setDownloadNotice('Descarga iniciada directamente en tu navegador.');
+        setDownloadNotice('Download started directly in your browser.');
         return;
       }
-      setError(`Error durante la descarga: ${err.message}`);
+      setError(`Download error: ${err.message}`);
     }
   };
 
@@ -163,10 +163,10 @@ export function App() {
       });
     } catch (err: any) {
       if (err?.isBrowserSaveInitiated) {
-        setDownloadNotice('Descarga iniciada directamente en tu navegador.');
+        setDownloadNotice('Download started directly in your browser.');
         return;
       }
-      setError(`Error al descargar desde el historial: ${err.message}. Es posible que el enlace temporal haya caducado.`);
+      setError(`History download error: ${err.message}. The temporary link may have expired.`);
     }
   };
 
@@ -187,25 +187,25 @@ export function App() {
         <div className="text-center space-y-4 mb-8 sm:mb-10 max-w-2xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold tracking-wide uppercase">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>100% Local • Sin APIs • Sin Servidores</span>
+            <span>100% Local • No APIs • No Servers</span>
           </div>
 
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7] leading-tight">
-            Descarga vídeo y audio <br className="hidden sm:inline" />
-            al instante.
+            Download video and audio <br className="hidden sm:inline" />
+            instantly.
           </h2>
 
           <p className="text-sm sm:text-base text-[#86868b] max-w-lg mx-auto">
-            Pega un enlace directo a un archivo o carga un archivo de tu dispositivo. Todo se procesa en tu navegador, sin llamadas externas.
+            Paste a direct file link or load a file from your device. Everything runs in your browser, with no external calls.
           </p>
 
           {/* Supported platform chips */}
           <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs text-[#86868b]">
             <span className="flex items-center gap-1 bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
-              <FileVideo className="w-3.5 h-3.5 text-emerald-500" /> Enlaces directos
+              <FileVideo className="w-3.5 h-3.5 text-emerald-500" /> Direct links
             </span>
             <span className="flex items-center gap-1 bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
-              <HardDrive className="w-3.5 h-3.5 text-blue-500" /> Archivos locales
+              <HardDrive className="w-3.5 h-3.5 text-blue-500" /> Local files
             </span>
             <span className="flex items-center gap-1 bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
               <FileVideo className="w-3.5 h-3.5 text-violet-500" /> MP4 / WebM
@@ -232,14 +232,14 @@ export function App() {
 
         {/* Local file picker */}
         <div className="mt-4 flex items-center gap-3">
-          <span className="text-xs text-[#86868b]">o</span>
+          <span className="text-xs text-[#86868b]">or</span>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-[#1d1d1f] dark:text-[#f5f5f7] transition-all"
           >
             <HardDrive className="w-3.5 h-3.5" />
-            Cargar archivo local
+            Load local file
           </button>
           <input
             ref={fileInputRef}
@@ -254,9 +254,9 @@ export function App() {
         <div className="w-full max-w-2xl mt-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs sm:text-sm flex items-start gap-3">
           <FlaskConical className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="font-semibold">Aún no soportamos YouTube ni otras plataformas — necesitamos tu ayuda</p>
+            <p className="font-semibold">We don’t support YouTube or other platforms yet — we need your help</p>
             <p className="mt-0.5 opacity-90">
-              El navegador bloquea la lectura de esos vídeos y seguimos buscando una forma 100% local de resolverlo.
+              The browser blocks reading those videos, and we are still looking for a 100% local way to solve it.
             </p>
             <a
               href="https://github.com/juanpimg/hydradownloader/blob/main/docs/LOCAL-ONLY-RESEARCH.md"
@@ -264,7 +264,7 @@ export function App() {
               rel="noopener noreferrer"
               className="mt-1.5 inline-block font-semibold underline underline-offset-2 hover:opacity-80"
             >
-              Ver la investigación y cómo ayudar
+              Read the research and how to help
             </a>
           </div>
         </div>
@@ -274,7 +274,7 @@ export function App() {
           <div className="w-full max-w-2xl mt-5 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs sm:text-sm flex items-start gap-3 animate-in fade-in zoom-in-95">
             <Download className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold">Descarga alternativa iniciada</p>
+              <p className="font-semibold">Alternative download started</p>
               <p className="mt-0.5 opacity-90">{downloadNotice}</p>
             </div>
           </div>
@@ -285,7 +285,7 @@ export function App() {
           <div className="w-full max-w-2xl mt-5 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs sm:text-sm flex items-start gap-3 animate-in fade-in zoom-in-95">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold">Aviso</p>
+              <p className="font-semibold">Notice</p>
               <p className="mt-0.5 opacity-90">{error}</p>
             </div>
           </div>
@@ -317,9 +317,9 @@ export function App() {
               <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto sm:mx-0">
                 <ShieldCheck className="w-5 h-5" />
               </div>
-              <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Privacidad Total</h3>
+              <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Total Privacy</h3>
               <p className="text-xs text-[#86868b] leading-relaxed">
-                Cero llamadas a APIs externas. Sin proxies, sin instancias, sin rastreo. Solo tu navegador.
+                Zero external API calls. No proxies, no instances, no tracking. Just your browser.
               </p>
             </div>
 
@@ -327,9 +327,9 @@ export function App() {
               <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto sm:mx-0">
                 <Zap className="w-5 h-5" />
               </div>
-              <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Alta Velocidad</h3>
+              <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">High Speed</h3>
               <p className="text-xs text-[#86868b] leading-relaxed">
-                Descarga directa con reanudación por rangos y guardado local inmediato.
+                Direct downloads with range resume and instant local save.
               </p>
             </div>
 
@@ -339,7 +339,7 @@ export function App() {
               </div>
               <h3 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Suite HydraApps</h3>
               <p className="text-xs text-[#86868b] leading-relaxed">
-                Edita tus descargas en HydraCut o pásalas a HydraConvert con un solo clic.
+                Edit your downloads in HydraCut or send them to HydraConvert in one click.
               </p>
             </div>
           </div>
@@ -377,7 +377,7 @@ export function App() {
           </a>
         </div>
         <p>
-          HydraDownloader — Parte de la suite multimedia <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">HydraApps</span>. 100% local, inspirado en Apple HIG.
+          HydraDownloader — Part of the <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">HydraApps</span> media suite. 100% local, inspired by Apple HIG.
         </p>
       </footer>
 
