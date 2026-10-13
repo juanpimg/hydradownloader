@@ -212,5 +212,101 @@ describe('Cobalt Extractor & Tunnel Validation', () => {
       expect(result.success).toBe(false);
       expect(result.error).toMatch(/restricciones de YouTube en las instancias de Cobalt/i);
     });
+
+    it('returns specific video unavailable error when Cobalt returns video unavailable error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: 'error',
+          error: { code: 'error.api.content.video.unavailable', context: { service: 'youtube' } }
+        })
+      } as unknown as Response);
+
+      const result = await cobaltExtractor.extract('https://www.youtube.com/watch?v=00000000000');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/no está disponible en YouTube/i);
+    });
+
+    it('returns specific private video error when Cobalt returns private video error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: 'error',
+          error: { code: 'error.api.content.video.private', context: { service: 'youtube' } }
+        })
+      } as unknown as Response);
+
+      const result = await cobaltExtractor.extract('https://www.youtube.com/watch?v=private12345');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/es privado/i);
+    });
+
+    it('returns specific age-restricted error when Cobalt reports login or age restriction', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: 'error',
+          error: { code: 'error.api.youtube.login_required' },
+          text: 'Sign in to confirm your age'
+        })
+      } as unknown as Response);
+
+      const result = await cobaltExtractor.extract('https://www.youtube.com/watch?v=age12345678');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/restricción de edad o requiere inicio de sesión/i);
+    });
+
+    it('returns specific geo-blocked error when Cobalt reports geo restriction', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: 'error',
+          error: { code: 'error.api.content.video.geo_blocked' }
+        })
+      } as unknown as Response);
+
+      const result = await cobaltExtractor.extract('https://www.youtube.com/watch?v=geoblock1234');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/restricción geográfica/i);
+    });
+
+    it('returns false immediately when probeTunnelUrl is called with already aborted signal', async () => {
+      const abortCtrl = new AbortController();
+      abortCtrl.abort();
+
+      const fetchSpy = vi.fn();
+      globalThis.fetch = fetchSpy;
+
+      const isValid = await probeTunnelUrl('https://example.com/stream.mp4', abortCtrl.signal);
+      expect(isValid).toBe(false);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('rejects tunnel when secondary Range GET returns estimated-content-length: -1', async () => {
+      // HEAD succeeds with 200 OK without content-length or estimated-content-length
+      // Secondary Range GET returns estimated-content-length: -1
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          headers: new Headers()
+        } as unknown as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 206,
+          headers: new Headers({ 'estimated-content-length': '-1' })
+        } as unknown as Response);
+
+      const isValid = await probeTunnelUrl('https://tunnel.example.com/stream-sec-neg.mp4');
+      expect(isValid).toBe(false);
+    });
   });
 });

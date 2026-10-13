@@ -50,6 +50,10 @@ export async function downloadStream(
     throw new Error('El tamaño indicado para este archivo es de 0 bytes.');
   }
 
+  if (signal?.aborted) {
+    return;
+  }
+
   const filename = sanitizeFilename(title, stream.format);
   const notify = (state: DownloadProgressState) => {
     if (onProgress) {

@@ -122,6 +122,7 @@ export const youtubeExtractor: Extractor = {
     const oembedPromise = fetchYouTubeOEmbed(url, signal);
 
     // 1. Primary Strategy: Extract direct download streams via Cobalt
+    let cobaltError: string | undefined;
     try {
       const cobaltRes = await cobaltExtractor.extract(url, signal);
       if (cobaltRes.success && cobaltRes.data && cobaltRes.data.streams.length > 0) {
@@ -141,8 +142,11 @@ export const youtubeExtractor: Extractor = {
           cobaltRes.data.extractedVia = 'Cobalt Engine (Directo)';
           return cobaltRes;
         }
+      } else if (!cobaltRes.success && cobaltRes.error) {
+        cobaltError = cobaltRes.error;
       }
-    } catch (e) {
+    } catch (e: any) {
+      cobaltError = e?.message;
       console.warn('[HydraDownloader] Cobalt extraction failed, trying Invidious fallback...', e);
     }
 
@@ -239,7 +243,7 @@ export const youtubeExtractor: Extractor = {
 
     return {
       success: false,
-      error: 'No se pudo obtener el archivo de descarga para este vídeo de YouTube debido a restricciones de la plataforma o instancias no disponibles. Verifica la URL o intenta con otra instancia en Ajustes.'
+      error: cobaltError || 'No se pudo obtener el archivo de descarga para este vídeo de YouTube debido a restricciones de la plataforma o instancias no disponibles. Verifica la URL o intenta con otra instancia en Ajustes.'
     };
   }
 };

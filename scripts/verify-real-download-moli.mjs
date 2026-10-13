@@ -258,19 +258,40 @@ async function main() {
       let finalState = null;
       const progressUpdates = [];
 
-      // Intercept and collect chunks into an array buffer to return byte count
-      let downloadedBase64Prefix = '';
-      const origFetch = window.fetch;
+      // Intercept URL.createObjectURL to capture the real downloaded media blob
+      const origCreateObjectURL = window.URL.createObjectURL;
+      let capturedBlob = null;
+      window.URL.createObjectURL = (blob) => {
+        capturedBlob = blob;
+        return origCreateObjectURL(blob);
+      };
 
-      await downloadStream(stream, title, (state) => {
-        finalState = state;
-        totalReceived = state.bytesReceived;
-        progressUpdates.push({
-          pct: state.progress,
-          bytes: state.bytesReceived,
-          speed: state.speed
+      try {
+        await downloadStream(stream, title, (state) => {
+          finalState = state;
+          totalReceived = state.bytesReceived;
+          progressUpdates.push({
+            pct: state.progress,
+            bytes: state.bytesReceived,
+            speed: state.speed
+          });
         });
-      });
+      } finally {
+        window.URL.createObjectURL = origCreateObjectURL;
+      }
+
+      let mediaBase64 = '';
+      if (capturedBlob) {
+        const arrayBuffer = await capturedBlob.arrayBuffer();
+        const uint8 = new Uint8Array(arrayBuffer);
+        let binary = '';
+        const chunkSize = 16384;
+        for (let i = 0; i < uint8.length; i += chunkSize) {
+          const chunk = uint8.subarray(i, i + chunkSize);
+          binary += String.fromCharCode.apply(null, chunk);
+        }
+        mediaBase64 = btoa(binary);
+      }
 
       return JSON.stringify({
         success: true,
@@ -283,6 +304,7 @@ async function main() {
         progressUpdatesCount: progressUpdates.length,
         finalProgress: finalState?.progress,
         finalSpeed: finalState?.speed,
+        mediaBase64,
         isSuccess: totalReceived > 500000 && finalState?.speed === 'Completado'
       });
     })()
@@ -304,12 +326,24 @@ async function main() {
     throw new Error(`Test 4 Failed: Expected >500 KB received, got ${test4Result.totalBytesReceived} bytes. Result: ${JSON.stringify(test4Result)}`);
   }
 
-  // Save artifact file to disk to verify real media file exists
+  if (!test4Result.mediaBase64) {
+    throw new Error('Test 4 Failed: No real media bytes returned from browser session.');
+  }
+
+  // Save REAL media artifact file to disk to verify real media file exists
   const artifactPath = path.join('/tmp', 'moli_verified_download.mp4');
-  fs.writeFileSync(artifactPath, Buffer.alloc(test4Result.totalBytesReceived));
+  const realMediaBuffer = Buffer.from(test4Result.mediaBase64, 'base64');
+  fs.writeFileSync(artifactPath, realMediaBuffer);
   const stat = fs.statSync(artifactPath);
   console.log(`✓ Real media file artifact verified on disk at ${artifactPath} (${stat.size} bytes).`);
-  console.log('✓ Test 4 Passed: Real media bytes transferred (>500 KB, no 0-byte file created).\n');
+
+  // Verify MP4 magic box header at offset 4 ('ftyp')
+  const magic = realMediaBuffer.subarray(4, 8).toString('ascii');
+  if (magic !== 'ftyp') {
+    throw new Error(`Real media verification failed: expected MP4 'ftyp' magic signature, got '${magic}'`);
+  }
+  console.log(`✓ Verified valid MP4 container structure ('${magic}' box signature at offset 4).`);
+  console.log('✓ Test 4 Passed: Real media bytes transferred (>500 KB, valid MP4 binary on disk).\n');
 
   console.log('======================================================================');
   console.log('ALL MOLI RUNTIME BROWSER VERIFICATION TESTS PASSED SUCCESSFULLY! (4/4)');

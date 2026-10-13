@@ -53,8 +53,8 @@ export async function extractMedia(url: string, signal?: AbortSignal): Promise<E
       return result;
     }
 
-    // If a specific extractor failed and wasn't cobalt, try cobalt as universal fallback
-    if (matchedExtractor !== cobaltExtractor) {
+    // If a specific extractor failed and wasn't cobalt or youtube (which already uses cobalt as primary), try cobalt as universal fallback
+    if (matchedExtractor !== cobaltExtractor && matchedExtractor !== youtubeExtractor) {
       console.warn(`[HydraDownloader] Extractor ${matchedExtractor.name} falló, intentando Cobalt fallback...`);
       const fallbackResult = await cobaltExtractor.extract(trimmed, signal);
       if (fallbackResult.success) {
