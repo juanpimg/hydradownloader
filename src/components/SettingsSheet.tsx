@@ -1,7 +1,7 @@
 import { useState, useId } from 'react';
 import { AppSettings, saveSettings } from '../services/storage';
 import { X, Sliders, Trash2, HardDrive } from 'lucide-react';
-import { t } from '../services/i18n';
+import { t, SUPPORTED_LOCALES, LOCALE_NATIVE_NAMES } from '../services/i18n';
 
 interface SettingsSheetProps {
   isOpen: boolean;
@@ -77,8 +77,11 @@ export function SettingsSheet({
                   className="text-xs bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] px-3 py-1.5 rounded-xl border border-black/10 dark:border-white/10 outline-none"
                 >
                   <option value="system">{t('set_lang_system')}</option>
-                  <option value="en">{t('set_lang_en')}</option>
-                  <option value="es">{t('set_lang_es')}</option>
+                  {SUPPORTED_LOCALES.map((loc) => (
+                    <option key={loc} value={loc}>
+                      {LOCALE_NATIVE_NAMES[loc]}
+                    </option>
+                  ))}
                 </select>
               </div>
 

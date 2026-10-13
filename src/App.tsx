@@ -7,7 +7,7 @@ import { SettingsSheet } from './components/SettingsSheet';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { extractMedia, createLocalFileMedia, MediaMetadata, StreamOption } from './services/extractors';
 import { downloadStream, DownloadProgressState } from './services/downloadManager';
-import { t, setLocale, resolveLocale } from './services/i18n';
+import { t, setLocale, getLocale, resolveLocale } from './services/i18n';
 import {
   getSettings,
   getHistory,
@@ -59,12 +59,17 @@ export function App() {
     }
   }, [settings.theme]);
 
-  // Sync language: stored preference, otherwise browser language
+  // Sync language: stored preference, otherwise browser language.
+  // Done synchronously during render (idempotent) so t() in this same pass
+  // already returns the right language — an effect alone would leave the UI
+  // one render behind.
+  const resolvedLocale = resolveLocale(settings.locale);
+  if (getLocale() !== resolvedLocale) {
+    setLocale(resolvedLocale);
+  }
   useEffect(() => {
-    const resolved = resolveLocale(settings.locale);
-    setLocale(resolved);
-    document.documentElement.lang = resolved;
-  }, [settings.locale]);
+    document.documentElement.lang = getLocale();
+  });
 
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';

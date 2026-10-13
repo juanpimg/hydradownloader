@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
-import { t, setLocale, getLocale, resolveLocale } from './i18n';
+import { t, setLocale, getLocale, resolveLocale, SUPPORTED_LOCALES } from './i18n';
 import { PreviewCard } from '../components/PreviewCard';
 import type { MediaMetadata } from './extractors/types';
 
@@ -22,6 +22,17 @@ describe('i18n dictionary', () => {
     expect(t('ex_badurl')).toBe('Por favor, introduce una URL válida.');
   });
 
+  it('translates UI strings to French, German, Portuguese and Italian', () => {
+    setLocale('fr');
+    expect(t('download')).toBe('Télécharger');
+    setLocale('de');
+    expect(t('download')).toBe('Herunterladen');
+    setLocale('pt');
+    expect(t('download')).toBe('Baixar');
+    setLocale('it');
+    expect(t('download')).toBe('Scarica');
+  });
+
   it('interpolates variables in both locales', () => {
     expect(t('hist_sub', { n: 3 })).toBe('3 items stored locally');
     setLocale('es');
@@ -33,13 +44,22 @@ describe('resolveLocale', () => {
   it('honours an explicit preference', () => {
     expect(resolveLocale('en', 'es-ES')).toBe('en');
     expect(resolveLocale('es', 'en-US')).toBe('es');
+    expect(resolveLocale('fr', 'de-DE')).toBe('fr');
   });
 
-  it('auto-detects Spanish browsers, defaults to English otherwise', () => {
+  it('auto-detects supported browser languages, defaults to English otherwise', () => {
     expect(resolveLocale('system', 'es-ES')).toBe('es');
     expect(resolveLocale('system', 'es-MX')).toBe('es');
+    expect(resolveLocale('system', 'fr-FR')).toBe('fr');
+    expect(resolveLocale('system', 'de-DE')).toBe('de');
+    expect(resolveLocale('system', 'pt-BR')).toBe('pt');
+    expect(resolveLocale('system', 'it-IT')).toBe('it');
     expect(resolveLocale('system', 'en-US')).toBe('en');
-    expect(resolveLocale('system', 'fr-FR')).toBe('en');
+    expect(resolveLocale('system', 'ja-JP')).toBe('en');
+  });
+
+  it('supports six locales', () => {
+    expect(SUPPORTED_LOCALES).toEqual(['en', 'es', 'fr', 'de', 'pt', 'it']);
   });
 });
 
@@ -78,5 +98,13 @@ describe('i18n component wiring', () => {
       <PreviewCard media={media} preferredMode="video" onDownload={() => {}} isDownloading={false} />
     );
     expect(html).toContain('Download Audio');
+  });
+
+  it('renders PreviewCard in French when locale is fr', () => {
+    setLocale('fr');
+    const html = renderToString(
+      <PreviewCard media={media} preferredMode="video" onDownload={() => {}} isDownloading={false} />
+    );
+    expect(html).toContain('Télécharger l’Audio');
   });
 });

@@ -56,7 +56,7 @@ PoC. The full analysis lives in
 - **HydraApps Integration**:
   - Assigned development port: `:5177`.
   - Direct switcher to the other suite apps (`HydraCut`, `HydraHub`, `HydraDAW`, `HydraConvert`).
-- **English & Spanish, auto-detected**: the UI follows your browser language (`navigator.language`) with a manual override in Settings (System / English / Español). No i18n dependencies — a built-in `src/services/i18n.ts` dictionary covers UI, errors and extractor messages.
+- **6 languages, auto-detected**: English, Spanish, French, German, Portuguese and Italian. The UI follows your browser language (`navigator.language`) with a manual override in Settings (System / native names). No i18n dependencies — a built-in `src/services/i18n.ts` dictionary covers UI, errors and extractor messages.
 
 ---
 
